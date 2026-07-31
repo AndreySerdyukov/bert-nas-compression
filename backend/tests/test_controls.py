@@ -7,6 +7,8 @@ informative run first, and the protocol is the notebooks' own rather than one tu
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from training.train_reference import (
@@ -22,6 +24,7 @@ from training.train_reference import (
     DepthCost,
     controls,
     evenly_spaced,
+    print_schedule,
     project,
     random_mask,
 )
@@ -135,6 +138,28 @@ def test_the_schedule_counts_the_scoring_pass_every_control_pays() -> None:
     assert full["uniform-4"] - bare["uniform-4"] == pytest.approx(150.0)
     # The tf-idf control is not scored on a GPU and does not pick up the transformer's eval cost.
     assert full["tfidf"] == bare["tfidf"]
+
+
+def test_the_cooling_pause_goes_between_runs_and_into_the_total(capsys: Any) -> None:
+    """Idle time is still time, and a schedule that hid it would promise a night it cannot deliver.
+
+    Seventeen gaps for eighteen controls, not eighteen: nobody waits after the last one. At the
+    900 s a cooling pause intuitively wants to be, those gaps are 4.25 h - which is why the flag
+    documents 120 s instead.
+    """
+    measured = {4: DepthCost(train_seconds_per_step=1.0, eval_seconds_per_row=0.0)}
+    projected = project(measured, steps_per_epoch=60, test_rows=0)
+
+    print_schedule(projected, budget_hours=None, cooldown=0)
+    without = capsys.readouterr().out
+    print_schedule(projected, budget_hours=None, cooldown=900)
+    with_cooling = capsys.readouterr().out
+
+    gaps = len(projected) - 1
+    assert f"of which {gaps * 900 / 3600:.1f} h is cooling" in with_cooling
+    assert "cooling" not in without
+    # The work itself is untouched: the pause moves the finish line, not any control's cost.
+    assert without.splitlines()[2] == with_cooling.splitlines()[2]
 
 
 def test_a_missing_depth_falls_back_to_the_nearest_measurement() -> None:

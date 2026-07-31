@@ -383,14 +383,21 @@ def project(
     return projected
 
 
-def print_schedule(projected: list[tuple[Control, float]], budget_hours: float | None) -> None:
-    """What fits, in priority order, and what does not."""
+def print_schedule(
+    projected: list[tuple[Control, float]], budget_hours: float | None, cooldown: int = 0
+) -> None:
+    """What fits, in priority order, and what does not.
+
+    The cooling pause is in the cumulative column rather than beside it. It is idle time, but it
+    is idle time inside the same night, and a schedule that showed only the work would answer
+    "everything fits" for a run that spends a quarter of itself waiting.
+    """
     print(f"\n{'control':24s} {'layers':>7s} {'projected':>11s} {'cumulative':>12s}")
     print("-" * 58)
     running = 0.0
     fits = 0
-    for control, seconds in projected:
-        running += seconds
+    for index, (control, seconds) in enumerate(projected):
+        running += seconds + (cooldown if index else 0)
         depth = "-" if control.n_layers is None else str(control.n_layers)
         marker = ""
         if budget_hours is not None:
@@ -404,6 +411,9 @@ def print_schedule(projected: list[tuple[Control, float]], budget_hours: float |
         )
     print("-" * 58)
     print(f"all {len(projected)} controls: {running / 3600:.1f} h")
+    if cooldown:
+        idle = cooldown * max(len(projected) - 1, 0)
+        print(f"  of which {idle / 3600:.1f} h is cooling ({cooldown} s between runs)")
     if budget_hours is not None:
         print(f"in {budget_hours:g} h: the first {fits} of them")
     print(
@@ -421,6 +431,19 @@ def main() -> int:
     )
     parser.add_argument("--probe-batches", type=int, default=20)
     parser.add_argument("--budget-hours", type=float, default=None)
+    parser.add_argument(
+        "--cooldown",
+        type=int,
+        default=0,
+        metavar="SECONDS",
+        help=(
+            "idle between runs to let the machine cool. 120 is plenty: with the fans already "
+            "spinning, an M-series laptop is back at its baseline temperature inside two minutes "
+            "and the curve is flat after that. Longer buys no more cooling and costs the night - "
+            "at 900 s over seventeen runs it is four and a quarter hours of doing nothing, which "
+            "at any sane budget is five controls that never get run."
+        ),
+    )
     parser.add_argument("--only", action="append", help="run just this control (repeatable)")
     parser.add_argument("--list", action="store_true", help="print the controls and exit")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
@@ -450,7 +473,11 @@ def main() -> int:
                 f"scoring {len(split.test)} test rows after each control"
             )
             measured = probe(device, split.train, tracker, args.probe_batches)
-        print_schedule(project(measured, steps_per_epoch, len(split.test)), args.budget_hours)
+        print_schedule(
+            project(measured, steps_per_epoch, len(split.test)),
+            args.budget_hours,
+            args.cooldown,
+        )
         return 0
 
     selected = [c for c in controls() if not args.only or c.key in args.only]
@@ -468,21 +495,27 @@ def main() -> int:
             f"{len(split.train)} training rows, {len(split.test)} test rows, {EPOCHS} epoch, "
             f"{MAX_LENGTH} tokens, batch {BATCH_SIZE}, lr {LEARNING_RATE} on {device}"
         )
-        for control in selected:
+        for position, control in enumerate(selected):
             spent = time.perf_counter() - started
             if budget is not None and spent >= budget:
                 # Every control after this one is left undone, and the file says which.
                 tracker.skip(control.key)
                 continue
+            if done and args.cooldown:
+                # Between runs, not after the last one, and counted against the budget above:
+                # an idle machine is still spending the night.
+                tracker.write(f"cooling for {args.cooldown} s")
+                time.sleep(args.cooldown)
             with tracker.stage(control.key):
                 result = run_control(control, split, device, tracker)
             done.append(result)
+            remaining = len(selected) - position - 1
             tracker.write(
                 f"{control.key}: accuracy {result['accuracy']:.4f} "
-                f"({result['train']['seconds'] / 60:.0f} m training)"
+                f"({result['train']['seconds'] / 60:.0f} m training), {remaining} to go"
             )
             # Written after every run, so a laptop lid keeps whatever finished.
-            _write(args.out, selected, done, split, device)
+            _write(args.out, selected, done, split, device, args.cooldown)
 
     print(f"\nwrote {args.out}: {len(done)} of {len(selected)} controls")
     for entry in done:
@@ -578,7 +611,12 @@ def _fit_transformer(
 
 
 def _write(
-    out: Path, selected: list[Control], done: list[dict[str, Any]], split: Any, device: str
+    out: Path,
+    selected: list[Control],
+    done: list[dict[str, Any]],
+    split: Any,
+    device: str,
+    cooldown: int = 0,
 ) -> None:
     """The controls file: what ran, what did not, and under exactly which protocol."""
     import torch
@@ -607,6 +645,9 @@ def _write(
                     "warmup_ratio": WARMUP_RATIO,
                     "base_model": BASE_MODEL,
                     "device": device,
+                    # Idle seconds between runs. Nothing about the training, but it is why the
+                    # timestamps are further apart than the training times account for.
+                    "cooldown_seconds": cooldown,
                     "torch": str(torch.__version__),
                     "source": (
                         "notebooks/*/\\*_Eval.ipynb, which agree on every value. AlphaNAS received "
