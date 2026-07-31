@@ -1,0 +1,49 @@
+import MaskCost from "./widgets/MaskCost";
+
+Three of the four methods here search the same space, and it is about as small as a search space
+gets: **which of the twelve encoder layers to keep**. Twelve bits, with the constraint that at least
+four stay on.
+
+Nothing else varies. Hidden size stays at 768, attention heads stay at twelve, the feed-forward
+block stays at 3072 wide, and the tokenizer and embeddings are untouched. The AlphaNAS report says
+head count and FFN width were considered and dropped as having little influence on the task; whether
+that was the right call is arguable, but it does make the space small enough to reason about
+completely.
+
+## The cost function is a straight line
+
+Because the only thing that varies is how many layers survive, and every layer is identical in size,
+the parameter count is exact arithmetic:
+
+```
+params(k) = 24 429 314 + 7 087 872 · k
+```
+
+24 429 314 is everything outside the encoder stack - token, position and segment embeddings, their
+LayerNorm, the pooler and the two-way classifier - and it does not move. 7 087 872 is one encoder
+layer. Twelve layers give 109 483 778, which is what a loaded checkpoint reports, to the parameter.
+
+<MaskCost />
+
+Two things are worth noticing while clicking.
+
+**The floor is high.** Drop every layer and 24.4 million parameters remain, because the embedding
+table alone is 23.4 million of them. Layer selection can get you to 48% of the original model; it
+cannot get you to 10%. That is the ceiling on this entire family of methods, visible before any
+training happens, and it is why the one method that does reach 7.8 million had to throw the
+transformer away rather than trim it.
+
+**FLOPs and parameters are not the same axis.** Parameters are linear in the layer count. FLOPs are
+linear in the layer count _and_ quadratic in sequence length, because attention compares every token
+to every other one. Move the sequence-length control and the arithmetic cost changes by a factor the
+parameter count never sees. A model can be half the size and nowhere near half the cost, depending
+entirely on how long the inputs are.
+
+## What this space cannot tell you
+
+The mask fixes the cost completely and says nothing about the quality. Two four-layer masks have
+identical parameter counts, identical FLOPs, identical footprints - and there is no reason to expect
+identical accuracy, because layers at different depths have learned different things.
+
+Finding out which four-layer mask is the good one is the entire job of the search. It costs a
+training run per candidate, which is where the next four chapters go.

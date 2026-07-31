@@ -1,0 +1,56 @@
+Half of this project's claims are measurements, so the measuring deserves a chapter. The original
+numbers were taken like this:
+
+```python
+avg_sample_time_ms = mean_batch_time / batch_size * 1000
+```
+
+There are four separate problems in that line and the code around it, and each one is worth naming
+because each is easy to repeat.
+
+## It is throughput, reported as latency
+
+Dividing a batch's wall clock by the batch size gives you _throughput expressed per example_. That
+is a real and useful quantity, and it is not the same as the time it takes to answer one request.
+Batching amortises fixed costs across sixteen inputs; a user waiting on a single review gets none of
+that amortisation. The two can differ by an order of magnitude.
+
+Both are worth publishing. They just need different names, and this app gives them different names:
+**single-example latency** at batch 1, and **throughput** at batch 16.
+
+## There is no warm-up
+
+The first forward pass through a freshly loaded model is unlike every subsequent one: allocators are
+cold, kernels are being selected, caches are empty. Including it in a mean over a handful of passes
+lets one outlier set the number.
+
+The fix is to run several passes and throw them away before starting the timer. Three is enough
+interactively; the offline benchmark discards ten.
+
+## The timer can stop before the work does
+
+GPU kernel launches are asynchronous. Without an explicit synchronisation, `time.perf_counter()`
+returns once the work has been _queued_, not once it has finished - so the measurement can be shorter
+than the computation. This is the most likely explanation for the 0.02 ms attributed to AdaBERT,
+which is below what the harness could resolve regardless.
+
+## A mean of one pass is not a measurement
+
+A single pass has no spread, and a mean hides the tail. This project publishes the **median** and the
+**p95**, and the p95 is the interesting one: it is what a user notices.
+
+## What this app does instead
+
+Warm-up passes discarded, then repeated timed runs. Threads pinned to a fixed count, because
+`torch.set_num_threads` changes latency by more than the architectures do, and a figure taken with a
+different thread count is not comparable. The thread count and the machine are recorded next to every
+result and shown with it - **a latency number without its hardware is not a number**.
+
+Tokenisation is timed separately rather than folded in. At 512 tokens it is 10-30% of the total, and
+including it in a model comparison charges a four-layer model for work that has nothing to do with
+its architecture.
+
+And when several models are compared, the repeats are interleaved - all models, then all models
+again - rather than run to completion one at a time. On a laptop that matters: thermal throttling
+and turbo states drift over the minutes a comparison takes, and running one model to completion first
+gives it a systematically different machine than the last one gets.

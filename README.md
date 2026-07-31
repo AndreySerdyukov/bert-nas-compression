@@ -173,11 +173,14 @@ one configuration line would silently undo that, so it is checked rather than tr
 
 ## Status
 
-Built and green: repository layout, both scaffolds, design tokens, the MDX pipeline and its
-guard, Playwright over the production bundle, and three-job CI.
+**The methodology section is complete and needs no weights at all** - ten chapters, three
+interactive widgets, and every figure drawn from data parsed out of the notebooks and verified
+against them in CI. Along with it: the data spine (`architectures.json`, `search_trajectories.json`,
+`reported_results.json`), the mask arithmetic in both languages, 49 backend tests and 18 browser
+tests.
 
-Next: the data spine extracted from the notebooks, the methodology chapters, model serving, the
-honest benchmark with its controls, and the architecture explorer.
+Next: model serving and the playground, then the honest benchmark with its controls, then the
+architecture explorer.
 
 ## Credits
 

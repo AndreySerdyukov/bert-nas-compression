@@ -1,0 +1,54 @@
+The teaching feedback on the original project was short and correct: three people each fine-tuning
+their own baseline and comparing against each other is not a measurement, and there are established
+benchmarks for exactly this reason.
+
+That single remark reorganises the whole project, because it identifies what was missing. Not
+accuracy, not effort - a **control**.
+
+## The comparison that was never run
+
+Three NAS methods produced masks of four and five layers. Nobody trained a four-layer model with the
+layers chosen by a rule - every third one, the first four, the last four - under the same protocol
+and compared. Without that, "NAS found a good architecture" and "four-layer BERTs are fine on IMDB"
+predict exactly the same observations, and nothing in the project separates them.
+
+So the rebuild runs it. Evenly spaced, first-k and last-k masks at four and five layers; several
+random masks per size, so the searched mask can be placed in a distribution rather than next to a
+single point; DistilBERT, to ask what distillation buys at a comparable size; and TF-IDF with
+logistic regression, to ask how much of this task needs a transformer at all. Every one of them
+fine-tuned for one epoch on the same 28 000 rows at 512 tokens - the protocol the shipped Random
+Search and BANANAS models got - and scored by the same harness on the same test set.
+
+It is entirely possible that an evenly spaced mask matches the searched one. If it does, that is the
+result and it gets published as the result. A control is only worth running if you are willing to
+lose to it.
+
+## One baseline, not three
+
+The three fine-tunes of the same architecture span 0.8 points. The compression gap being celebrated
+is 2.5. Publishing three baselines and comparing against whichever suits makes that spread invisible;
+publishing one, and reporting the spread separately as what it is - run-to-run variance - keeps it in
+view.
+
+## Estimation budgets that could rank things
+
+Every search here spent its budget on more candidates rather than on better estimates, and two of
+them ended up ranking noise. Given the same total compute, fewer candidates evaluated on enough data
+to separate them would have produced a search whose observations meant something. That is the
+trade-off performance estimation always presents, and this project got it backwards.
+
+## Measure once, in one place
+
+Four tables existed because four things measured. One harness, one committed artifact, and a README
+generated from it - which is what this repository does now, with CI failing if the prose and the JSON
+disagree.
+
+## What still stands
+
+Worth ending here rather than on the list of problems. Four NAS strategies were implemented from
+scratch and they work. The layer-masking machinery is correct, the parameter arithmetic is exact, the
+four-layer models are real models that really do reach 90% while running two to three times faster,
+and the checkpoints have been public and loadable for over a year - which is more than most course
+projects can say.
+
+What the rebuild adds is not better models. It is knowing what they are worth.

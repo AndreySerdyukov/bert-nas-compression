@@ -1,0 +1,50 @@
+import SearchTrajectory from "./widgets/SearchTrajectory";
+
+The αNAS paper is about searching over _properties_ of an architecture rather than its concrete
+description - abstracting a network into the invariants that matter, mutating those, and
+synthesising a concrete model back out. The implementation here keeps the evolutionary skeleton and
+reduces the property to a single one: depth, encoded as the same twelve-bit mask.
+
+## How it works
+
+Start with a population of four: the all-ones mask plus three mutants of it. Score each, keep the
+best two, refill the population by mutating them, repeat for three generations. Mutation flips each
+bit with probability 0.3 and then repairs the result back into the 4-12 range.
+
+The fitness adds a hard constraint to the soft trade-off:
+
+```
+reward = accuracy - 1e-8 * params,  rejected outright if accuracy < 0.75 or params > 1e8
+```
+
+<SearchTrajectory method="alphanas" />
+
+## The seed that could never survive
+
+The first candidate in generation 1 is the all-ones mask - the full twelve-layer model - and it is
+rejected. Not because it scored badly; it scored 0.8979, the best accuracy in the entire run. It is
+rejected because 109 483 778 parameters exceed the hard cap of 100 000 000.
+
+That cap and that seed are incompatible by construction. The population is initialised with a
+member that the constraint can never accept, which wastes a quarter of the first generation on an
+architecture whose only possible outcome is rejection. It is visible as the crossed circle in the
+chart, and it recurs every time the search is run.
+
+## What it converged to
+
+By generation 3 the population had settled on `[1, 2, 6, 11]` - four layers, 52 780 802 parameters,
+0.8536 on the search's own split. That is a sensible-looking result: it keeps something early,
+something in the middle and the last layer.
+
+One number after it is not sensible. The final line of the notebook re-evaluates the winner and
+reports 0.7679 - below the 0.75 floor the search itself would have rejected. The cause is in the
+call: the validation loader is passed as both the training and the evaluation set. The published
+checkpoint comes from a separate notebook that does not have this problem, so the model is fine; the
+number printed at the end of the search is not.
+
+## Evolution on twelve bits
+
+Worth saying plainly: with twelve binary decisions, three generations and a population of four, an
+evolutionary algorithm has very little room to be evolutionary. Twelve candidates were evaluated,
+one of which was rejected on arrival and several of which were re-evaluations of survivors. What
+this run demonstrates is that the machinery works, not that evolution beat the alternatives.

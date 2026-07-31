@@ -1,6 +1,7 @@
-import Probe from "./content/_probe.mdx";
 import { NavLink, Route, Routes } from "react-router-dom";
 
+import Chapter from "./pages/Chapter";
+import Methodology from "./pages/Methodology";
 import { useTheme } from "./theme";
 
 const NAV = [
@@ -82,16 +83,8 @@ export default function App() {
             path="/benchmark"
             element={<Stub title="Benchmark" note="Every number this project publishes." />}
           />
-          {/* Phase 2 replaces this with the real chapter list. It renders an .mdx file today so
-              the build proves the MDX pipeline works rather than only that it is configured. */}
-          <Route
-            path="/methodology"
-            element={
-              <section className="prose-nas mx-auto max-w-content px-6 py-16">
-                <Probe />
-              </section>
-            }
-          />
+          <Route path="/methodology" element={<Methodology />} />
+          <Route path="/methodology/:slug" element={<Chapter />} />
           <Route path="*" element={<Stub title="Not found" note="No such page." />} />
         </Routes>
       </main>

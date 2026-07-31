@@ -1,0 +1,75 @@
+This chapter exists because the rebuild had to choose which numbers to publish, and choosing meant
+reading every source. What follows is what that turned up. Each item is a property of a script or a
+method, never of a person - the work was a three-person student project done under a deadline, and
+most of these are the kind of thing that survives precisely because nobody had a reason to look
+twice.
+
+## There are four result tables and they disagree
+
+The same seven models are reported in the eval notebooks, in the head-to-head notebook, in four tech
+reports and in the final presentation. Almost no two agree.
+
+Only `NAS_Results.ipynb` scores every model on one common test set with one harness, so that is the
+table this project treats as the original's answer - and the one the new measurements are compared
+against. The tech-report figures (91.25, 91.37, 90.5, 89.79, 93.99) are superseded rather than
+merged.
+
+Two disagreements are worth naming. Alina's baseline reports 0.9188 in its own notebook and 0.9367
+when the uploaded checkpoint is re-scored: the largest single gap in the project, and evidence the
+two are different training runs. BANANAS is the only method whose eval notebook and the shared
+benchmark agree exactly - and even it disagrees with its own tech report, which reports 90.5% where
+the notebook prints 90.31%.
+
+## Random Search reports one architecture and ships another
+
+The selection notebook and the tech report both name `[0, 1, 6, 8, 10]`. The eval notebook, which
+trained and uploaded the checkpoint, sets `[0, 1, 5, 7, 9]`. Both keep five layers, so the parameter
+count is identical in every table and nothing downstream noticed.
+
+The model on the Hub is the second one. This app reports it, and a unit test pins the distinction so
+it cannot be quietly reconciled later.
+
+## AlphaNAS's final re-evaluation trains on its own evaluation set
+
+The last call passes `val_loader` as both the training and the evaluation loader, and reports 0.7679
+where the search had measured 0.8536 for the same mask. The published checkpoint comes from a
+different notebook and is unaffected; the number at the end of the selection notebook is not a
+measurement of anything.
+
+## BANANAS searched at a budget that could not rank anything
+
+560 training rows at 128 tokens, against 2 800 and 5 600 at 512 for the others. Candidate accuracies
+land between 0.58 and 0.69, and the same configuration evaluated twice scores 0.6214 and 0.5786. The
+final print reports the last iteration's accuracy rather than the winner's.
+
+## The search budgets differ by a factor of fifty
+
+Three candidates on 5 000 rows, twelve on 10 000, ten on 1 000, fifteen epochs on 49 582. No ranking
+of "which NAS method is better" survives that, and this project does not make one. What it does
+instead is add the controls that make a different, answerable question available: did searching beat
+a simple rule?
+
+## AdaBERT is not a compressed transformer
+
+Covered in chapter 7. Every selected operation was parameter-free, so the shipped model is a bag of
+embeddings. The checkpoint size confirms it to the byte.
+
+## The latency figures measure something other than their label
+
+Covered in chapter 8. Throughput reported as latency, no warm-up, no synchronisation, a mean over
+one pass.
+
+## The split overlaps the official IMDB partition
+
+The Kaggle CSV is the standard corpus - 25 000 official train rows and 25 000 official test rows -
+and the notebooks reshuffle all 50 000 with one seed. The resulting test set therefore contains rows
+from the official training half, and the models saw rows from the official test half.
+
+These checkpoints cannot be compared against published IMDB results. It is the reason every external
+reference in this project is fine-tuned and measured here, on this same split, rather than quoted.
+
+## Nothing runs outside Colab
+
+Hardcoded Drive paths, no requirements file, no package structure, no seeding beyond the split.
+Reproducing any of it meant having the original author's Google Drive - which is what this repository
+is, in the end, an answer to.
