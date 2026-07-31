@@ -1,0 +1,68 @@
+The first three methods pick layers out of a pretrained BERT. AdaBERT does something different in
+kind: it builds a small network from scratch and teaches it to imitate the big one.
+
+## Two ideas at once
+
+**Differentiable architecture search.** Choosing between seven candidate operations is a discrete
+decision, and you cannot differentiate through a discrete decision. So you relax it: give each
+operation a weight, take a weighted mixture of all of them, and learn the weights by gradient descent
+along with everything else. Gumbel-softmax makes the mixture behave like a hard choice while staying
+differentiable, with a temperature controlling how sharply it commits. Anneal the temperature and the
+mixture collapses onto one operation per slot.
+
+**Task-adaptive distillation.** The small network is trained to match the teacher's internal hidden
+states, not just its final answer, with student layer _i_ mapped to teacher layer 3*i*. The task
+supervises it too, but most of the signal comes from imitation.
+
+The operations searched over are convolutions of width 1, 3 and 5, a dilated convolution, max
+pooling, average pooling and a skip connection. Note what is absent: there is no attention anywhere
+in the student. Hidden size is 256 against the teacher's 768.
+
+The objective is a weighted sum of three terms:
+
+```
+L = 0.2 * cross_entropy + 0.8 * distillation + 1.5 * efficiency
+```
+
+## What it found
+
+Every one of the five surviving cells selected `avg_pool`.
+
+Average pooling has no parameters. Neither does max pooling or a skip connection, and the efficiency
+term - weighted 1.5, the largest of the three - is a direct penalty on parameters and FLOPs. With
+that weighting, the cheapest way to reduce the loss is to select operations that cost nothing, and
+the search took it.
+
+The resulting network is:
+
+```
+Embedding(30522, 256) -> mean over tokens -> Linear(256, 2)
+```
+
+which is 30522·256 + 256·2 + 2 = **7 814 146 parameters**. The checkpoint on the Hub is 31 258 949
+bytes, exactly that many float32 values plus a header. The arithmetic and the artifact agree: there
+is nothing else in the model.
+
+## Calling it what it is
+
+This is a bag-of-embeddings classifier - average the word vectors, run a linear layer. It is a
+respectable baseline with a long history, it reaches 88% on this task, and it is genuinely the
+fastest thing in the comparison by a wide margin. It is also not a compressed transformer, and a
+result that reads "differentiable NAS produced a 14× smaller model at 88%" describes something other
+than what happened.
+
+The notebook's own diagnosis is that fifteen search epochs is too few where the literature uses fifty
+to ninety, and that is consistent with what the training log shows: the loss sits at about 12.1
+throughout, dominated by the efficiency term, and barely moves. With more epochs and a smaller
+efficiency weight the search might well have kept the convolutions. Nobody has run it to find out,
+which is the honest place to leave it.
+
+## One more thing to be careful about
+
+`FrozenAdaBERT` is defined twice in this repository's notebooks, and the two differ: the version in
+`dnas/` stacks the five average-pooling cells, the version redefined in `results/` goes straight from
+the embedding to the mean. Since average pooling has no parameters, `load_state_dict` succeeds either
+way and neither errors - but the forward passes are not the same, which is the most likely reason the
+same checkpoint scores 0.8979 in one notebook and 0.8801 in the other. This app loads the artifact
+with `strict=True` so that the checkpoint decides which definition is correct, rather than the loader
+guessing.

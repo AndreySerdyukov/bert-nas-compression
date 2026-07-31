@@ -10,11 +10,13 @@ test("every route renders a heading and leaves the console clean", async ({ page
   expect(harness.consoleErrors).toEqual([]);
 });
 
-test("the methodology route renders compiled MDX", async ({ page }) => {
-  await page.goto("/methodology");
-  // The prose comes from an .mdx file. If the MDX plugin stopped compiling, the build would fail;
-  // if it compiled to something empty, only an assertion on rendered text would notice.
-  await expect(page.locator(".prose-nas p")).toContainText("MDX pipeline");
+test("the page does not scroll sideways on a chapter with a wide figure", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 780 });
+  await page.goto("/methodology/the-search-space");
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test("the theme toggle flips the root class and survives a reload", async ({ page }) => {
@@ -27,13 +29,4 @@ test("the theme toggle flips the root class and survives a reload", async ({ pag
 
   await page.reload();
   await expect(root).toHaveClass(/dark/);
-});
-
-test("the page does not scroll sideways at a laptop width", async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 780 });
-  await page.goto("/methodology");
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
 });

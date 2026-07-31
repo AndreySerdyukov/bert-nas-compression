@@ -1,0 +1,47 @@
+import ReportedPareto from "./widgets/ReportedPareto";
+
+A BERT-base sentiment classifier holds 109 483 778 parameters. On disk that is 438 MB of float32.
+It reads a film review and answers one of two things.
+
+The mismatch is not subtle, and it is not specific to sentiment. `bert-base-uncased` was pretrained
+to be good at everything language-shaped, and a task that needs one bit of output inherits the whole
+apparatus: twelve encoder layers, twelve attention heads each, a 3072-wide feed-forward block in
+every layer. The question this project asks is how much of that a single task actually needs, and
+the answer turns out to be a good deal less than all of it.
+
+## The three things that get traded
+
+Compression is usually sold as one number - "2× smaller" - but three quantities move, and they do
+not move together.
+
+**Parameters** decide how much memory a copy of the model occupies, and therefore how many copies
+fit on a machine. **FLOPs** decide how much arithmetic one prediction costs. **Accuracy** decides
+whether any of it was worth doing. The first two are properties of the architecture and can be
+computed exactly. The third has to be measured, and measuring it means training the model first.
+
+That asymmetry runs through everything here. It is why an interactive layer picker can report a
+parameter count the instant you click, and why it cannot report an accuracy without a minute of
+compute. It is also why architecture search is expensive: every candidate you want to rank has to be
+trained before you can rank it.
+
+## The budget
+
+The project set itself a limit: cut the model down without losing more than seven points of
+accuracy. That number is arbitrary the way all such numbers are, but stating it up front is what
+turns "make it smaller" into a question with an answer.
+
+<ReportedPareto />
+
+Four methods, four points below and to the left of the baseline, all inside the budget. Read at face
+value the picture is a success: half the parameters for two and a half points, or a fourteenth of
+the parameters for five.
+
+Read more carefully it raises the question this rebuild exists to answer. Every one of those four
+points sits below a baseline that was fine-tuned three separate times, by three people, to
+93.3%, 93.7% and 94.1%. The spread between three runs of _the same architecture_ is 0.8 points. The
+gap being celebrated is 2.5. Those numbers are close enough together that the comparison needs to be
+made more carefully than "one of ours against one of theirs" - and that is before anything is said
+about how the latencies were timed.
+
+The next chapter is about what the search actually did. Chapter 9 is about what happened when the
+numbers were checked.

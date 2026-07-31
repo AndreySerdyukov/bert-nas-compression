@@ -1,0 +1,48 @@
+import SearchSpaceCounter from "./widgets/SearchSpaceCounter";
+
+Neural Architecture Search is the idea that the shape of a network is a thing you can optimise
+rather than a thing you decide. Every method in this project, and essentially every method in the
+literature, decomposes into the same three parts.
+
+## Search space
+
+The set of architectures you are willing to consider. This is a design decision and it is doing more
+work than any other part: a search can only ever return something the space contains, so a space
+that excludes the good answer guarantees failure no matter how clever the strategy is. Making the
+space bigger makes the search harder and rarely makes it better.
+
+## Search strategy
+
+How you pick the next architecture to look at. Random sampling is a strategy. So is evolution, so is
+Bayesian optimisation over a surrogate model, so is relaxing the discrete choice into a continuous
+one and following the gradient. All four appear in this project, and they are what the four chapters
+after this one are about.
+
+## Performance estimation
+
+How you find out whether the architecture you picked is any good - and this is where the cost is.
+
+Estimating an architecture honestly means training it. A candidate here got one epoch, which took
+between two and four minutes on a subsample. That is the unit of currency for the whole exercise: a
+search's budget is measured in candidates, and a candidate is measured in training runs.
+
+<SearchSpaceCounter />
+
+The consequence is worth sitting with. Even the small space these methods used holds thousands of
+architectures, and looking at all of them is days of GPU time for a task where the full model
+already works. So every NAS method is, structurally, a way of _not_ looking at most of the space -
+and the interesting question about any of them is whether the architectures it chose to skip were
+worth skipping.
+
+## Where the estimate can go wrong
+
+Because training every candidate to convergence is unaffordable, every method cheats somewhere:
+fewer epochs, less data, shorter sequences, weight sharing. Those shortcuts are what make search
+tractable and they are also its main failure mode, because a cheap estimate that does not correlate
+with the real ranking turns the whole search into an expensive random draw.
+
+That is not a hypothetical here. One of the four searches ran its estimates on 560 training rows at
+128 tokens and got candidate accuracies between 0.58 and 0.69 - close enough to chance that
+re-evaluating the same architecture twice moved it by 4.3 points, which is wider than the gap it was
+trying to detect. Chapter 6 covers what that does to a Bayesian method that assumes its observations
+mean something.

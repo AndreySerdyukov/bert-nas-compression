@@ -14,8 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health
+from app.api import content, health
 from app.config import get_settings
+from app.repositories.content import ContentRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,12 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     app.state.settings = settings
+    # Committed JSON, read once. Nothing here needs weights, which is why the methodology half of
+    # the app works on a clean clone.
+    app.state.content = ContentRepository.load(settings.data_dir)
 
     app.include_router(health.router)
+    app.include_router(content.router)
 
     @app.exception_handler(Exception)
     async def unhandled(_: Request, exc: Exception) -> JSONResponse:

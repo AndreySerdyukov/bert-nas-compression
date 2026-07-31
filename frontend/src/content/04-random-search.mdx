@@ -1,0 +1,49 @@
+import SearchTrajectory from "./widgets/SearchTrajectory";
+
+Random Search is the method that keeps embarrassing the others. Li and Talwalkar's 2019 paper is
+mostly an argument that a properly tuned random baseline matches most published NAS results on the
+benchmarks of the time, and that many reported gains were comparisons against a random search that
+had been given less budget or worse hyperparameters.
+
+So it belongs here twice: as a method, and as the control every other method has to beat.
+
+## How it works
+
+Draw `k` uniformly between 4 and 12, draw `k` layer indices without replacement, skip duplicates,
+train the candidate for one epoch, score it. Repeat until the budget runs out. There is no state -
+nothing learned from one draw informs the next - which is exactly what makes it the right floor.
+
+The score is not accuracy alone. It trades quality against size explicitly:
+
+```
+score = alpha * accuracy + beta * (1 - log(params + 1) / log(max_params))
+```
+
+with `alpha = 0.3` and `beta = 0.7` as it was actually run. Those weights matter more than they
+look: at that setting the size term dominates, so a smaller model wins unless a larger one is
+substantially more accurate.
+
+<SearchTrajectory method="random-search" />
+
+## Three draws
+
+The budget was three candidates. Not thirty, not three hundred - three, on 2 800 training rows.
+
+The first draw kept ten layers and scored 0.9157, far and away the best accuracy of the three. It
+also has the best fitness of the three, at 0.2801. It is not what was chosen. The winner was the
+third draw, a five-layer mask at 0.8429 and a fitness of 0.2759 - the best of the two five-layer
+candidates, which is a defensible thing to want, but it is not what the fitness function was ranking.
+
+There is a second discrepancy, and it is larger. The selection notebook and the tech report both
+name `[0, 1, 6, 8, 10]` as the winner. The notebook that trained and uploaded the published
+checkpoint uses `[0, 1, 5, 7, 9]`. Both keep five layers, so every table of parameter counts agrees
+and nothing downstream noticed. The model on the Hub - the one this app serves and benchmarks - is
+the second one.
+
+## What three draws can support
+
+Not much, and that is the honest reading. With three samples from a space of 3 797, the result is
+approximately "a five-layer model at 91% exists", which is worth knowing and is not evidence about
+search strategy. The paper this chapter is named after would say the interesting comparison is
+against a simple rule - keep every third layer, keep the first five - trained the same way. That
+comparison was never run here, which is why the rebuild runs it.

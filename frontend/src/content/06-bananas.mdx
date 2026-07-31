@@ -1,0 +1,58 @@
+import SearchTrajectory from "./widgets/SearchTrajectory";
+
+BANANAS is the most interesting method here and the one whose run went worst, for reasons that have
+nothing to do with the method.
+
+The idea is Bayesian optimisation applied to architectures. Training a candidate is expensive, so
+train a cheap _surrogate_ that predicts a candidate's score from its description, use the surrogate
+to decide what to try next, and spend the expensive evaluation only on that. Every observation
+improves the surrogate, so the search should get better at choosing as it goes.
+
+## The four pieces
+
+**A surrogate.** An ensemble of three small networks, 12 → 16 → 16 → 1, trained by mean squared
+error on everything evaluated so far. An ensemble rather than one model because the spread between
+its members is the uncertainty estimate, and Bayesian optimisation needs uncertainty as much as it
+needs a prediction.
+
+**An encoding.** The paper's central contribution is _path encoding_ - describing an architecture by
+the set of input-to-output paths through its operation graph - and the report here says outright
+that it does not transfer, because this search space is a layer mask and not a graph of operations.
+The raw twelve bits are used instead. That is an honest substitution and it costs the method the
+thing the paper was arguing for.
+
+**An acquisition function.** Independent Thompson sampling: draw one value per candidate from the
+ensemble's predicted distribution and take the argmax. Sampling rather than maximising the mean is
+what makes the search explore.
+
+**An acquisition optimiser.** Mutate the better half of what has been seen to generate the next batch
+of proposals, then score all of them with the surrogate and evaluate the best.
+
+<SearchTrajectory method="bananas" phaseBoundaryAfter={5} />
+
+## Why it could not work here
+
+The dashed rule separates five initial random samples from five model-guided iterations. The problem
+is on the vertical axis: every candidate scores between 0.58 and 0.69, on a task where the full model
+reaches 0.93.
+
+The searches were run on 560 training rows at a sequence length of 128 - roughly a fifth of the data
+the other methods used, at a quarter of the sequence length. At that budget the model is barely above
+chance, and the differences between architectures are buried in run-to-run noise.
+
+The clearest evidence is in the log itself. Iterations 7 and 8 evaluate the **same configuration**,
+`[0, 1, 6, 9]`, and get 0.6214 and 0.5786. A 4.3-point spread on identical inputs, when the entire
+range the search is trying to rank spans about 11 points. The surrogate is being fit to values whose
+noise is a third of their signal, and Thompson sampling over a surrogate fit to noise is a slow way
+of sampling uniformly.
+
+## The result, and what it means
+
+The best configuration by fitness is `[0, 1, 6, 9]` - four layers - and when it was later trained
+properly on the full 28 000 rows it reached 0.9031 on the test set. That is a genuinely good model.
+
+It is worth being careful about what that shows. The architecture is fine. The claim that Bayesian
+optimisation _found_ it is not supported by this run, because the observations the surrogate learned
+from could not distinguish the candidates. A final print compounds this: the reported accuracy of the
+winner, 0.6000, is a leaked loop variable from the last iteration rather than the 0.6214 the winning
+configuration actually scored.
