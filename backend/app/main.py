@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from app.api import content, health, models
 from app.config import Settings, get_settings
 from app.repositories.content import ContentRepository
+from app.repositories.examples import ExampleRepository
 from app.repositories.model_registry import ModelRegistry
 from app.services.inference import InferenceService
 
@@ -78,6 +79,9 @@ def create_app() -> FastAPI:
     # Committed JSON, read once. Nothing here needs weights, which is why the methodology half of
     # the app works on a clean clone.
     app.state.content = ContentRepository.load(settings.data_dir)
+    # Committed data too, and deliberately loaded whether or not serving is on: the reviews are
+    # readable before anyone has downloaded a checkpoint.
+    app.state.examples = ExampleRepository.load(settings.data_dir)
     _build_registry(app, settings)
 
     app.include_router(health.router)
