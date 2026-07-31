@@ -140,6 +140,54 @@ jobs:
             -H 'Content-Type: application/json' -d '{"text":"a review"}')
           test "$code" = "404"
 
+      # The reason the `selftest` job kind exists. It needs no checkpoint, so it can run on this
+      # weightless image, and it is the only place a missing `proxy_buffering off` shows up: with
+      # buffering on, nginx holds every frame and delivers them together at the end. Development
+      # never reproduces it, because Vite's proxy streams.
+      - name: The progress stream arrives in pieces, not all at once at the end
+        run: |
+          job=$(curl -fsS -X POST http://localhost:3000/api/jobs \
+            -H 'Content-Type: application/json' -d '{"kind":"selftest"}' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          echo "job $job"
+
+          # Timestamp every frame as it arrives, then assert the first one landed well before the
+          # job could possibly have finished (ten steps at 0.4 s, so about four seconds).
+          curl -sN --max-time 60 "http://localhost:3000/api/jobs/$job/events" \
+            | while IFS= read -r line; do
+                case "$line" in data:*) printf '%s\n' "$(date +%s.%N)";; esac
+              done > /tmp/frames.txt
+          wc -l < /tmp/frames.txt
+          python3 - <<'PY'
+          stamps = [float(line) for line in open("/tmp/frames.txt")]
+          assert len(stamps) >= 5, f"only {len(stamps)} frames arrived"
+          spread = stamps[-1] - stamps[0]
+          assert spread > 1.0, (
+              f"every frame arrived within {spread:.2f}s of the first: the stream was buffered. "
+              "Check proxy_buffering off in nginx.conf."
+          )
+          print(f"{len(stamps)} frames spread over {spread:.1f}s")
+          PY
+
+      - name: A second job is refused rather than queued
+        run: |
+          first=$(curl -fsS -X POST http://localhost:3000/api/jobs \
+            -H 'Content-Type: application/json' -d '{"kind":"selftest"}' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/jobs \
+            -H 'Content-Type: application/json' -d '{"kind":"selftest"}')
+          test "$code" = "429"
+          # And the poll endpoint answers with the same shape the stream carries.
+          curl -fsS "http://localhost:3000/api/jobs/$first" | grep -q '"kind":"selftest"'
+
+      - name: A scan with no weights is refused with the fetch command
+        run: |
+          code=$(curl -sS -o /tmp/scan.json -w '%{http_code}' -X POST http://localhost:3000/api/jobs \
+            -H 'Content-Type: application/json' -d '{"kind":"disagreement"}')
+          cat /tmp/scan.json
+          test "$code" = "503"
+          grep -q 'fetch_models.py' /tmp/scan.json
+
       - name: nginx serves the bundle and proxies to the backend
         run: |
           curl -fsS http://localhost:3000/ | grep -q '<title>BERT NAS Compression</title>'

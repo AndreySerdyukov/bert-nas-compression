@@ -11,7 +11,10 @@ attached to every prediction and every measurement rather than being logged once
 from __future__ import annotations
 
 import logging
+import os
 import platform
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from app.schemas.models import RuntimeInfo
 
@@ -46,6 +49,34 @@ def configure_torch_threads(threads: int) -> None:
         # already run a forward pass, and the second call raises. The first call is the one that
         # counted, so there is nothing to fix.
         logger.debug("inter-op thread count was already fixed for this process")
+
+
+@contextmanager
+def unpinned_threads() -> Iterator[int]:
+    """Let torch use every core for the duration of the block, then restore the pinned count.
+
+    The pin exists so that latency figures are comparable, and it costs real time: one thread is
+    the honest way to measure and a wasteful way to score two thousand reviews. A scan is not a
+    measurement - it reports which reviews the models disagree on - so inside this block the pin
+    buys nothing and is dropped.
+
+    Safe because a scan holds the models exclusively while it runs, so there is no measurement
+    happening alongside it that could pick up the raised thread count and quietly report a figure
+    taken under different conditions. Do not use this anywhere that is not exclusive.
+    """
+    try:
+        import torch
+    except ImportError:  # pragma: no cover - torch is present in every working environment
+        yield 0
+        return
+
+    pinned = int(torch.get_num_threads())
+    available = os.cpu_count() or pinned
+    try:
+        torch.set_num_threads(available)
+        yield available
+    finally:
+        torch.set_num_threads(pinned)
 
 
 def describe_runtime(device: str) -> RuntimeInfo:

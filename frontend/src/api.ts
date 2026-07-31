@@ -282,3 +282,76 @@ export const compare = (body: {
   measure_latency?: boolean;
   measure_throughput?: boolean;
 }) => postJson<CompareResponse>("/api/compare", body);
+
+// --- long-running work ---------------------------------------------------------------------------
+
+export type JobStatus = "running" | "done" | "failed";
+
+export interface JobSnapshot {
+  id: string;
+  kind: string;
+  status: JobStatus;
+  /** Named stages, fixed before the job starts, so the whole bar can be drawn up front. */
+  stages: string[];
+  stage: string | null;
+  stage_index: number;
+  processed: number;
+  total: number;
+  messages: string[];
+  elapsed_s: number;
+  /** Shape depends on `kind`; use `scanResult` to narrow it. Null until the job finishes. */
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
+export interface ScanModel {
+  name: string;
+  label: string;
+  params: number | null;
+  n_layers: number | null;
+  /** Against the corpus label, over the scanned rows. Not the benchmark. */
+  correct: number;
+  accuracy: number;
+  /** Against the baseline's verdicts. Null on the baseline itself. */
+  agree_with_baseline: number | null;
+  agreement: number | null;
+}
+
+export interface ScanRow {
+  id: number;
+  /** The corpus label as a verdict word, so it compares directly with what the models said. */
+  label: string;
+  n_chars: number;
+  excerpt: string;
+  truncated: boolean;
+  verdicts: Record<string, string>;
+}
+
+export interface ScanResult {
+  baseline: string | null;
+  rows_scanned: number;
+  models: ScanModel[];
+  disagreements_found: number;
+  /** Fewer than `disagreements_found` when the cap bit. Both are shown, never just this one. */
+  disagreements_shown: number;
+  disagreements: ScanRow[];
+  /** The scan drops the thread pin, because it counts disagreements rather than timing anything. */
+  threads_used: number;
+  machine: string;
+}
+
+/**
+ * Narrow a finished job's result. The cast is real and is why this lives in one place: the server
+ * types `result` by `kind`, and TypeScript cannot see that relationship across the wire.
+ */
+export function scanResult(job: JobSnapshot | null): ScanResult | null {
+  if (job === null || job.kind !== "disagreement" || job.result === null) return null;
+  return job.result as unknown as ScanResult;
+}
+
+export const startJob = (body: { kind: "disagreement" | "selftest"; limit?: number }) =>
+  postJson<JobSnapshot>("/api/jobs", body);
+
+export const fetchJob = (id: string) => getJson<JobSnapshot>(`/api/jobs/${id}`);
+
+export const jobEventsUrl = (id: string) => `${BASE}/api/jobs/${id}/events`;

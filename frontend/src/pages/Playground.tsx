@@ -1,9 +1,20 @@
 import { useState } from "react";
 
-import { ApiError, compare, type CompareResponse, type Example } from "../api";
+import { ApiError, compare, scanResult, type CompareResponse, type Example } from "../api";
+import JobProgress from "../components/JobProgress";
 import ModelCard from "../components/ModelCard";
+import ScanReport from "../components/ScanReport";
 import { describeRuntime } from "../lib/format";
+import { useJob } from "../lib/useJob";
 import { useExamples, useModels } from "../lib/useServing";
+
+/** Rows of the evaluation sample the scan can cover. The full sample is the number that counts. */
+const FULL_SAMPLE = 2000;
+const SCAN_SIZES = [
+  { rows: FULL_SAMPLE, label: "Scan all 2,000" },
+  { rows: 500, label: "First 500" },
+  { rows: 200, label: "First 200" },
+] as const;
 
 /**
  * One review, every model at once.
@@ -32,9 +43,12 @@ export default function Playground() {
   // The text the shown result belongs to, so an edited box cannot look like a fresh answer.
   const [scoredText, setScoredText] = useState("");
 
+  const scan = useJob();
+
   const models = catalog.data?.models ?? [];
   const canScore = text.trim().length > 0 && models.length > 0 && !scoring;
   const truth = chosen !== null && chosen.text === scoredText ? chosen.label : null;
+  const scanned = scanResult(scan.job);
 
   function pick(example: Example) {
     setText(example.text);
@@ -202,6 +216,46 @@ export default function Playground() {
                   <ModelCard key={prediction.name} prediction={prediction} truth={truth} />
                 ))}
               </div>
+            </section>
+          )}
+
+          {models.length > 0 && (
+            <section className="mt-14 border-t border-hair pt-8">
+              <h2 className="text-[22px] font-semibold tracking-tight">
+                Find every review they disagree on
+              </h2>
+              <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-slate">
+                One review at a time is an anecdote. This scores the whole evaluation sample with
+                every model and keeps the rows where they part company, which is what a two-point
+                accuracy gap actually looks like: a few dozen reviews, and you can read them.
+              </p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {SCAN_SIZES.map((size) => (
+                  <button
+                    key={size.rows}
+                    type="button"
+                    disabled={scan.busy}
+                    onClick={() => void scan.start({ limit: size.rows })}
+                    className={size.rows === FULL_SAMPLE ? "btn-primary" : "btn-secondary"}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+                {/* Stated up front rather than discovered halfway through: the full sample takes
+                    minutes, and a reader deserves to choose knowingly. */}
+                <p className="text-[13px] text-slate">
+                  The full sample takes several minutes on a laptop.
+                </p>
+              </div>
+
+              {scan.error !== null && (
+                <p className="panel mt-6 p-4 text-[14px] text-slate">{scan.error}</p>
+              )}
+
+              {scan.job !== null && scan.job.status === "running" && <JobProgress job={scan.job} />}
+
+              {scanned !== null && <ScanReport result={scanned} />}
             </section>
           )}
 

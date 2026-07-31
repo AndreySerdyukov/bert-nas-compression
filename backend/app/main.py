@@ -8,18 +8,21 @@ the filesystem or torch.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import content, health, models
+from app.api import content, health, jobs, models
 from app.config import Settings, get_settings
 from app.repositories.content import ContentRepository
 from app.repositories.examples import ExampleRepository
 from app.repositories.model_registry import ModelRegistry
 from app.services.inference import InferenceService
+from app.services.jobs import JobRunner
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +63,17 @@ def _build_registry(app: FastAPI, settings: Settings) -> None:
     app.state.inference = InferenceService(registry, settings)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Nothing to start - the registry is built in the factory - and one thing to stop."""
+    yield
+    app.state.jobs.shutdown()
+
+
 def create_app() -> FastAPI:
     """Build the application: settings, middleware, routers."""
     settings = get_settings()
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, lifespan=_lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -84,9 +94,15 @@ def create_app() -> FastAPI:
     app.state.examples = ExampleRepository.load(settings.data_dir)
     _build_registry(app, settings)
 
+    # One runner for the process, because the models it drives are one shared object. Built even
+    # when serving is off: the `selftest` job needs no checkpoint, and it is what proves the whole
+    # progress pipeline works on an image that has none.
+    app.state.jobs = JobRunner()
+
     app.include_router(health.router)
     app.include_router(content.router)
     app.include_router(models.router)
+    app.include_router(jobs.router)
 
     @app.exception_handler(Exception)
     async def unhandled(_: Request, exc: Exception) -> JSONResponse:

@@ -152,3 +152,36 @@ test("a refused request is shown as its reason, not as an empty result", async (
   await expect(page.getByText("another request is being scored.")).toBeVisible();
   await expect(page.locator(`[data-model="${COMPARE.results[0]!.name}"]`)).toHaveCount(0);
 });
+
+test("the scan streams its progress and then shows the rows that split the models", async ({
+  page,
+  harness,
+}) => {
+  await page.goto("/playground");
+  await page.getByRole("button", { name: "Scan all 2,000" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: /412 of 2,000 reviews split the models/i }),
+  ).toBeVisible();
+
+  // The summary is per model, and the baseline is not compared against itself.
+  await expect(page.locator('[data-scan-model="bert-imdb"]')).toContainText("96.00%");
+  await expect(page.locator('[data-scan-model="adabert"]')).toContainText("87.00%");
+
+  // The rows are the point of the whole feature.
+  await expect(page.locator("[data-disagreement]")).toHaveCount(2);
+  await expect(page.locator('[data-disagreement="8761"]')).toContainText("adabert: negative");
+
+  // A cap that went unmentioned would read as though these were all of them.
+  await expect(page.getByText(/2 of the 412 disagreeing reviews/i)).toBeVisible();
+  // And the scan says it is not a timing, because it dropped the thread pin to run.
+  await expect(page.getByText(/not a measurement of speed/i)).toBeVisible();
+
+  expect(harness.consoleErrors).toEqual([]);
+});
+
+test("the scan result is never confused with the published benchmark", async ({ page }) => {
+  await page.goto("/playground");
+  await page.getByRole("button", { name: "First 200" }).click();
+  await expect(page.getByText(/not the full 15 000-row test split/i)).toBeVisible();
+});

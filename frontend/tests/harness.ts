@@ -6,6 +6,8 @@ import {
   EXAMPLES,
   MODELS,
   REPORTED_RESULTS,
+  SCAN_FRAMES,
+  SCAN_STARTED,
   TRAJECTORIES,
 } from "./fixtures";
 
@@ -48,6 +50,28 @@ async function guardTheNetwork(page: Page, harness: Harness, origin: string): Pr
     if (url.startsWith(origin) && !url.includes("/api/")) return route.continue();
     harness.unstubbed.push(url);
     await route.abort();
+  });
+
+  // The job endpoints need shapes the flat map cannot express: a POST that returns a started job,
+  // and a stream. The stream is fulfilled as one body holding every frame - the app closes it on
+  // the terminal snapshot, so a stub that ends immediately is the same story told faster.
+  await page.route("**/api/jobs", async (route) => {
+    harness.apiCalls.push("/api/jobs");
+    await route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify(SCAN_STARTED),
+    });
+  });
+  await page.route("**/api/jobs/*/events", async (route) => {
+    harness.apiCalls.push("/api/jobs/events");
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: SCAN_FRAMES.map((frame) => `event: update\ndata: ${JSON.stringify(frame)}\n\n`).join(
+        "",
+      ),
+    });
   });
 
   for (const [path, body] of Object.entries(API_STUBS)) {
