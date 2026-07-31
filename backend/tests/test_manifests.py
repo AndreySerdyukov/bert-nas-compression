@@ -39,7 +39,7 @@ def test_the_revision_is_pinned(name: str) -> None:
     assert manifest["hf_repo"].count("/") == 1
 
 
-@pytest.mark.parametrize("name", sorted(EXPECTED_MODELS - {"adabert"}))
+@pytest.mark.parametrize("name", sorted(EXPECTED_MODELS))
 def test_the_label_order_was_measured_not_assumed(name: str) -> None:
     """The single most dangerous thing this project could get wrong.
 
@@ -75,13 +75,26 @@ def test_the_manifests_agree_with_the_extracted_architectures() -> None:
 
 
 def test_adabert_is_a_state_dict_not_a_snapshot() -> None:
-    """Which of the two divergent FrozenAdaBERT definitions it is gets decided at load, not here."""
+    """The checkpoint carries no config, so the manifest has to carry the architecture instead."""
     manifest = manifests()["adabert"]
+    arch = manifest["arch"]
     assert manifest["kind"] == "adabert"
-    assert manifest["arch"]["weights"] == "frozen_adabert.pt"
-    assert (
-        manifest["arch"]["vocab_size"] * manifest["arch"]["hidden_size"] + 256 * 2 + 2 == 7_814_146
-    )
+    assert arch["weights"] == "frozen_adabert.pt"
+    assert arch["vocab_size"] * arch["hidden_size"] + 256 * 2 + 2 == 7_814_146
+    assert manifest["model_info"]["params"] == 7_814_146
+    # Transcribed from the notebook that saved the file, and named there, because `strict=True`
+    # cannot choose between the two divergent class definitions: the selected operation carries no
+    # parameters, so both produce identical state-dict keys.
+    assert arch["selected_ops"] == ["avg_pool"] * 5
+    assert arch["selected_layers"] == [1, 2, 5, 6, 7]
+    assert "notebooks/dnas" in arch["source"]
+
+
+def test_adabert_is_served_at_the_length_it_was_trained_at() -> None:
+    """It has no attention mask and means over its padding, so 128 is part of the model."""
+    assert manifests()["adabert"]["arch"]["max_length"] == 128
+    for name in EXPECTED_MODELS - {"adabert"}:
+        assert manifests()[name]["arch"]["max_length"] == 512
 
 
 @pytest.mark.parametrize("name", sorted(EXPECTED_MODELS))

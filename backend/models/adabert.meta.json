@@ -8,17 +8,40 @@
     "name": "adabert",
     "label": "AdaBERT",
     "description": "Differentiable NAS with distillation. Every searched operation came out parameter-free, so the shipped network is an embedding table, a mean over tokens and a linear layer.",
-    "method": "adabert"
+    "method": "adabert",
+    "params": 7814146
   },
   "arch": {
     "name": "frozen_adabert",
     "weights": "frozen_adabert.pt",
     "vocab_size": 30522,
     "hidden_size": 256,
-    "num_labels": 2
+    "num_labels": 2,
+    "max_length": 128,
+    "selected_layers": [
+      1,
+      2,
+      5,
+      6,
+      7
+    ],
+    "selected_ops": [
+      "avg_pool",
+      "avg_pool",
+      "avg_pool",
+      "avg_pool",
+      "avg_pool"
+    ],
+    "source": "notebooks/dnas/Differentiable_NAS.ipynb, the cell that builds FrozenAdaBERT and saves frozen_adabert.pt. The checkpoint carries no config, and the definition in notebooks/results/ omits the cells; both load strictly, because the selected operation is parameter-free, so provenance decides and the probe checks."
   },
   "label_order": {
     "positive_index": 1,
-    "source": "assumed, verified at load"
+    "id2label": {
+      "0": "negative",
+      "1": "positive"
+    },
+    "probe_agreement": 1.0,
+    "probe_reviews": 8,
+    "source": "measured by scripts/fetch_models.py against data/label_probe.json"
   }
 }
