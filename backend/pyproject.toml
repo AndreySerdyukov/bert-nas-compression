@@ -1,0 +1,75 @@
+[project]
+name = "bert-nas-backend"
+version = "0.1.0"
+description = "Serving and benchmarking for NAS-compressed BERT sentiment classifiers"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    # Inference. The CPU wheel is selected in the Dockerfile via --extra-index-url; locally
+    # torch picks up MPS on Apple silicon, which is what the reference training runs use.
+    "torch>=2.2",
+    "transformers>=4.44",
+    "tokenizers>=0.19",
+    "huggingface-hub>=0.24",
+    # safetensors is what the checkpoints are stored as; pinned explicitly rather than left to
+    # transformers' extras so the packaging test can see it.
+    "safetensors>=0.4",
+    # Metrics (accuracy/F1/confusion) and the TF-IDF + logistic regression reference model.
+    "scikit-learn>=1.5",
+    "joblib>=1.4",
+    "numpy>=2.0",
+    # Reading the IMDB csv and reproducing the notebooks' train_test_split.
+    "pandas>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "httpx>=0.27",
+    "mypy>=1.10",
+    "ruff>=0.5",
+    # Progress bars for the offline scripts. training/ is not copied into the serving image,
+    # so this stays a dev dependency.
+    "tqdm>=4.66",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# The trailing * is load-bearing: a literal ["app"] ships a wheel containing only app/__init__.py
+# and app/config.py, silently dropping every subpackage. Pinned by tests/test_packaging.py.
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+# Unknown markers become errors: a typo in `needs_weights` would otherwise turn into a test that
+# quietly never runs anywhere.
+addopts = "--strict-markers"
+markers = [
+    "needs_weights: requires model snapshots downloaded by scripts/fetch_models.py",
+    "needs_corpus: requires the raw IMDB csv (see data/README.md)",
+]
+filterwarnings = [
+    # starlette nudging us towards httpx2; TestClient works, and swapping the http client of the
+    # test suite is not a change this project needs to make.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+# None of these ship type stubs; under --strict that would otherwise be an error per import.
+[[tool.mypy.overrides]]
+module = ["torch.*", "transformers.*", "sklearn.*", "joblib", "pandas", "tqdm.*", "huggingface_hub"]
+ignore_missing_imports = true

@@ -1,0 +1,18 @@
+# Local run of the whole app: backend (FastAPI) + frontend (nginx serving the built bundle).
+services:
+  backend:
+    build: ./backend
+    environment:
+      APP_CORS_ORIGINS: '["http://localhost:3000"]'
+      # Override to "none" to exercise the no-weights path the image ships with, or to "all" for
+      # the two extra full-BERT runs.
+      APP_MODEL_TIER: ${APP_MODEL_TIER:-core}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
