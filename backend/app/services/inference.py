@@ -13,8 +13,10 @@ import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from typing import Any
 
 from app.config import Settings
+from app.repositories.examples import SampleRow
 from app.repositories.model_registry import LoadedModel, ModelRegistry
 from app.schemas.models import ModelsResponse
 from app.schemas.predict import (
@@ -22,9 +24,11 @@ from app.schemas.predict import (
     ModelPrediction,
     PredictResponse,
 )
+from app.services.evaluation import scan_disagreements
 from app.services.latency import latency_stats, throughput_stats, time_call, time_round_robin
+from app.services.progress import ProgressReporter
 from app.serving.base import Prediction
-from app.serving.runtime import describe_runtime
+from app.serving.runtime import describe_runtime, unpinned_threads
 
 
 class ModelNotFoundError(Exception):
@@ -175,6 +179,43 @@ class InferenceService:
             disagree=disagree,
             runtime=describe_runtime(self._settings.serve_device),
         )
+
+    # --- the disagreement scan -------------------------------------------------------------------
+
+    def scan_stages(self, names: Sequence[str]) -> list[str]:
+        """The stage list a scan will walk, so a page can draw the whole bar before it starts."""
+        ordered = sorted(names, key=lambda name: (name != self._settings.baseline_model, name))
+        return [f"scoring with {self._loaded(name).info.label}" for name in ordered] + ["comparing"]
+
+    def scan_disagreements(
+        self,
+        rows: Sequence[SampleRow],
+        names: Sequence[str],
+        progress: ProgressReporter,
+    ) -> dict[str, Any]:
+        """Score the sample with several models and report where they part company.
+
+        Holds the models for the whole run rather than per batch. That looks unfriendly - the
+        interactive endpoints answer 429 for the duration - but it is the only arrangement in which
+        the scan can drop the thread pin: nothing can be measured alongside it, so nothing can
+        quietly report a latency taken on eight cores as though it came from one.
+        """
+        loaded = {name: self._loaded(name) for name in dict.fromkeys(names)}
+        with self._exclusive(), unpinned_threads() as threads:
+            progress.write(
+                f"scanning {len(rows)} reviews on {threads} threads. This is a count of "
+                "disagreements, not a timing, so the thread pin is off for it."
+            )
+            report = scan_disagreements(
+                loaded, rows, baseline=self._settings.baseline_model, progress=progress
+            )
+
+        # Deliberately no latency in this result. The scan ran unpinned and batched, and a
+        # millisecond figure taken under those conditions would not be comparable to anything the
+        # rest of the application publishes.
+        report["threads_used"] = threads
+        report["machine"] = describe_runtime(self._settings.serve_device).machine
+        return report
 
     # --- internals -----------------------------------------------------------------------------
 

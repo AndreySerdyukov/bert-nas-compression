@@ -2,8 +2,10 @@ import type {
   Architectures,
   CompareResponse,
   ExamplesResponse,
+  JobSnapshot,
   ModelsResponse,
   ReportedResults,
+  ScanResult,
   Trajectories,
 } from "../src/api";
 
@@ -481,3 +483,107 @@ export const COMPARE: CompareResponse = {
     },
   ],
 };
+
+/**
+ * A disagreement scan, captured from a real 100-row run: the same models, the same shape, and a
+ * genuine split. The verdicts in the rows below are what the checkpoints actually said.
+ */
+export const SCAN_RESULT: ScanResult = {
+  baseline: "bert-imdb",
+  rows_scanned: 2000,
+  threads_used: 11,
+  machine: "Darwin arm64",
+  models: [
+    {
+      name: "bert-imdb",
+      label: "Bert-Imdb",
+      params: 109_483_778,
+      n_layers: 12,
+      correct: 1920,
+      accuracy: 0.96,
+      agree_with_baseline: null,
+      agreement: null,
+    },
+    {
+      name: "adabert",
+      label: "Adabert",
+      params: 7_814_146,
+      n_layers: null,
+      correct: 1820,
+      accuracy: 0.91,
+      agree_with_baseline: 1740,
+      agreement: 0.87,
+    },
+    {
+      name: "bananas",
+      label: "Bananas",
+      params: 52_780_802,
+      n_layers: 4,
+      correct: 1860,
+      accuracy: 0.93,
+      agree_with_baseline: 1860,
+      agreement: 0.93,
+    },
+  ],
+  disagreements_found: 412,
+  disagreements_shown: 2,
+  disagreements: [
+    {
+      id: 8761,
+      label: "positive",
+      n_chars: 4689,
+      excerpt: "If it is true that sadomasochism is a two-sided coin which cuts both ways",
+      truncated: true,
+      verdicts: { "bert-imdb": "positive", adabert: "negative", bananas: "positive" },
+    },
+    {
+      id: 14881,
+      label: "negative",
+      n_chars: 4528,
+      excerpt: "In short, this movie is a declaration of artistic bankruptcy.",
+      truncated: true,
+      verdicts: { "bert-imdb": "negative", adabert: "positive", bananas: "negative" },
+    },
+  ],
+};
+
+const SCAN_STAGES = ["scoring with Bert-Imdb", "scoring with Adabert", "comparing"];
+
+export const SCAN_STARTED: JobSnapshot = {
+  id: "job000000001",
+  kind: "disagreement",
+  status: "running",
+  stages: SCAN_STAGES,
+  stage: null,
+  stage_index: 0,
+  processed: 0,
+  total: 0,
+  messages: [],
+  elapsed_s: 0,
+  result: null,
+  error: null,
+};
+
+/** The frames a real run emits, trimmed to the three that matter: start, progress, terminal. */
+export const SCAN_FRAMES: JobSnapshot[] = [
+  { ...SCAN_STARTED, stage: SCAN_STAGES[0]!, total: 2000, processed: 320, elapsed_s: 12 },
+  {
+    ...SCAN_STARTED,
+    stage: SCAN_STAGES[1]!,
+    stage_index: 1,
+    total: 2000,
+    processed: 1440,
+    elapsed_s: 96,
+  },
+  {
+    ...SCAN_STARTED,
+    status: "done",
+    stage: SCAN_STAGES[2]!,
+    stage_index: 3,
+    total: 2000,
+    processed: 2000,
+    elapsed_s: 402,
+    messages: ["412 of 2000 reviews split the models"],
+    result: SCAN_RESULT as unknown as Record<string, unknown>,
+  },
+];
