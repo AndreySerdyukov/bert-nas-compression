@@ -67,13 +67,38 @@ that](data/README.md#-this-split-overlaps-the-official-imdb-partition).
 It is entirely possible that a naive mask matches the searched one. If so, that is the result, and
 it gets published as the result.
 
-## Reported results, pending verification
+## Measured here
 
-The original's head-to-head, from `notebooks/results/NAS_Results.ipynb` - the only one of its four
-tables that scores every model on one test set with one harness. **These are the numbers being
-checked, not the numbers this project stands behind.**
+Generated from `backend/data/benchmark.json` by
+[`scripts/render_readme_table.py`](backend/scripts/render_readme_table.py), which CI re-runs with
+`--check`. A number in this table cannot change without being re-measured first.
 
 <!-- benchmark:start -->
+
+| Model | Method | Accuracy | Macro F1 | Params | Latency, median | Throughput | Memory |
+|---|---|---:|---:|---:|---:|---:|---:|
+| BERT-base | fine-tune (baseline) | 0.9330 | 0.9330 | 109 483 778 | 20.7 ms | 128/s | 386 MB |
+| Random Search | random-search | 0.9077 | 0.9077 | 59 868 674 | 8.9 ms | 299/s | 183 MB |
+| AlphaNAS | alphanas | 0.9027 | 0.9026 | 52 780 802 | 7.2 ms | 362/s | 147 MB |
+| BANANAS | bananas | 0.9031 | 0.9031 | 52 780 802 | 7.2 ms | 369/s | 152 MB |
+| AdaBERT | adabert | 0.9028 | 0.9028 | 7 814 146 | 0.9 ms | 1444/s | 88 MB |
+
+Measured on the full 15,000 row test split (index sha256 `33d7fee10704`) by [`training/benchmark.py`](backend/training/benchmark.py).
+
+**Accuracy** on `mps`. **Latency** is single-example, batch 1, on `cpu` with 1 thread: 5 warm-up passes discarded, median of 25 repeats, models interleaved round-robin. **Throughput** is a batch of 16 and is a different quantity - dividing it by the batch size does not give the latency column. Darwin arm64, torch 2.13.0, transformers 5.14.1.
+
+All five timed the same review, but not on the same amount of work: BERT-base 33, Random Search 33, AlphaNAS 33, BANANAS 33, AdaBERT 128 tokens. The models that mask their padding see the review itself; AdaBERT has no attention mask and is served at a fixed 128, so its column is a shorter time over more tokens rather than a shorter time over the same ones.
+
+**Memory** is the resident set of a process holding one loaded and warmed model, less the 411 MB that torch and transformers occupy before any model is loaded - a floor every model pays and none of them owns. Each is weighed in its own process: weighed one after another in one process, a freed model's pages go back to Python's allocator rather than to the OS and the next model looks nearly free. The figures run below the fp32 weight size because a safetensors checkpoint is mapped rather than copied, and pages nothing reads never become resident.
+
+<!-- benchmark:end -->
+
+## What the original reported
+
+The head-to-head from `notebooks/results/NAS_Results.ipynb` - the only one of its four tables that
+scores every model on one test set with one harness. **These are the numbers being checked, not
+numbers this project stands behind.** They are kept here so the comparison above has something to
+be a comparison with.
 
 | Model | Method | Accuracy | Params | ms/example* |
 |---|---|---:|---:|---:|
@@ -83,10 +108,8 @@ checked, not the numbers this project stands behind.**
 | AlphaNAS | evolutionary NAS, 4 layers | 0.9027 | 52 780 802 | 0.30 |
 | AdaBERT | differentiable NAS | 0.8801 | 7 814 146 | 0.02 |
 
-<!-- benchmark:end -->
-
 \* Not single-example latency. The figure is mean wall-clock per batch divided by 16, taken with no
-warm-up and no CUDA synchronisation - a throughput number reported as a latency one. Our replacement
+warm-up and no CUDA synchronisation - a throughput number reported as a latency one. The replacement
 measures both, names them differently, and publishes median and p95.
 
 Two of the rows are worth reading twice. **AdaBERT's search degenerated to parameter-free

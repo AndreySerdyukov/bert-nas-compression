@@ -26,6 +26,9 @@ DOCUMENTS = {
     "trajectories": "search_trajectories.json",
     "reported-results": "reported_results.json",
     "benchmark": "benchmark.json",
+    # The controls, kept separate from the benchmark because one script owns each file. Absent
+    # until someone has spent the hours training them, which is the normal state.
+    "controls": "controls.json",
 }
 
 
