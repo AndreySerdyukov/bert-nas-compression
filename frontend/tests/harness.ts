@@ -1,6 +1,13 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
-import { ARCHITECTURES, REPORTED_RESULTS, TRAJECTORIES } from "./fixtures";
+import {
+  ARCHITECTURES,
+  COMPARE,
+  EXAMPLES,
+  MODELS,
+  REPORTED_RESULTS,
+  TRAJECTORIES,
+} from "./fixtures";
 
 /**
  * The stubbed world every browser test runs in.
@@ -26,6 +33,11 @@ const API_STUBS: Record<string, unknown> = {
   "/api/architectures": ARCHITECTURES,
   "/api/trajectories": TRAJECTORIES,
   "/api/reported-results": REPORTED_RESULTS,
+  // The serving endpoints. A test that wants a different registry state registers its own route
+  // afterwards: Playwright checks handlers in reverse registration order, so the later one wins.
+  "/api/models": MODELS,
+  "/api/examples": EXAMPLES,
+  "/api/compare": COMPARE,
 };
 
 async function guardTheNetwork(page: Page, harness: Harness, origin: string): Promise<void> {

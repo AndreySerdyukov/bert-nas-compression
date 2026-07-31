@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 
 import Chapter from "./pages/Chapter";
 import Methodology from "./pages/Methodology";
+import Playground from "./pages/Playground";
 import { useTheme } from "./theme";
 
 const NAV = [
@@ -71,10 +72,7 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="/playground"
-            element={<Stub title="Playground" note="Run one review through every model at once." />}
-          />
+          <Route path="/playground" element={<Playground />} />
           <Route
             path="/explorer"
             element={<Stub title="Explorer" note="Pick any subset of the twelve encoder layers." />}

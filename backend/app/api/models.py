@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
+from app.schemas.examples import Example, ExamplesResponse
 from app.schemas.models import ModelsResponse
 from app.schemas.predict import (
     CompareRequest,
@@ -54,6 +55,20 @@ def _unavailable(exc: ModelUnavailableError) -> HTTPException:
     if exc.remedy:
         detail = f"{detail}. Run: {exc.remedy}"
     return HTTPException(status_code=503, detail=detail)
+
+
+@router.get("/examples", response_model=ExamplesResponse)
+def examples(request: Request) -> ExamplesResponse:
+    """Reviews to start from, drawn by rule from the evaluation sample.
+
+    Needs no model, so it answers on a clean clone: a visitor can read the reviews the whole
+    project is scored on before deciding whether to download a gigabyte of weights.
+    """
+    repository = request.app.state.examples
+    return ExamplesResponse(
+        examples=[Example.model_validate(vars(entry)) for entry in repository.examples],
+        total=repository.total,
+    )
 
 
 @router.get("/models", response_model=ModelsResponse)

@@ -147,3 +147,138 @@ export interface ReportedResults {
 }
 
 export const fetchReportedResults = () => getJson<ReportedResults>("/api/reported-results");
+
+// --- serving: the catalog, the reviews, and scoring ---------------------------------------------
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const payload = (await response.json()) as { detail?: string };
+      if (payload.detail) detail = payload.detail;
+    } catch {
+      /* not a JSON error body; the status line is what we have */
+    }
+    throw new ApiError(detail, response.status);
+  }
+  return (await response.json()) as T;
+}
+
+/**
+ * The machine behind a timing. Never rendered apart from the number it belongs to: a millisecond
+ * figure without its thread count and device is not comparable to anything.
+ */
+export interface RuntimeInfo {
+  device: string;
+  threads: number;
+  interop_threads: number;
+  machine: string;
+  torch_version: string;
+}
+
+export interface ServedModel {
+  name: string;
+  label: string;
+  description: string;
+  method: string | null;
+  params: number | null;
+  /** null for AdaBERT, which has no encoder layers at all. */
+  n_layers: number | null;
+  /** 128 for AdaBERT, 512 for the rest. Part of the model, not a serving preference. */
+  max_length: number;
+  hf_repo: string;
+  hf_revision: string;
+  positive_index: number;
+  is_baseline: boolean;
+}
+
+/** A model with a manifest that is not being served, and what to do about it. */
+export interface SkippedModel {
+  name: string;
+  label: string;
+  reason: string;
+  remedy: string | null;
+}
+
+export interface ModelsResponse {
+  models: ServedModel[];
+  skipped: SkippedModel[];
+  baseline: string;
+  runtime: RuntimeInfo;
+}
+
+/** Single-example latency: what one reader waits for one review. */
+export interface LatencyStats {
+  batch_size: number;
+  warmup: number;
+  repeats: number;
+  median_ms: number;
+  p95_ms: number;
+  n_tokens: number;
+}
+
+/** Batched throughput. `per_example_ms` is not a latency and is never labelled as one. */
+export interface ThroughputStats {
+  batch_size: number;
+  warmup: number;
+  repeats: number;
+  median_batch_ms: number;
+  per_example_ms: number;
+  examples_per_second: number;
+  n_tokens: number;
+}
+
+export interface ModelPrediction {
+  name: string;
+  label: string;
+  verdict: string;
+  positive_probability: number;
+  probabilities: Record<string, number>;
+  n_tokens: number;
+  params: number | null;
+  n_layers: number | null;
+  /** One scoring, warm-up included. Honest about being a single sample. */
+  elapsed_ms: number;
+  latency: LatencyStats | null;
+  throughput: ThroughputStats | null;
+  /** null on the baseline itself, and when the baseline was not among the compared models. */
+  agrees_with_baseline: boolean | null;
+}
+
+export interface CompareResponse {
+  baseline: string;
+  results: ModelPrediction[];
+  disagree: string[];
+  runtime: RuntimeInfo;
+}
+
+export interface Example {
+  id: number;
+  text: string;
+  /** The corpus label: 1 positive, 0 negative. */
+  label: number;
+  n_chars: number;
+  /** True when the review runs past the 512-token window. */
+  truncated: boolean;
+}
+
+export interface ExamplesResponse {
+  examples: Example[];
+  total: number;
+  source: string;
+}
+
+export const fetchModels = () => getJson<ModelsResponse>("/api/models");
+export const fetchExamples = () => getJson<ExamplesResponse>("/api/examples");
+
+export const compare = (body: {
+  text: string;
+  models?: string[];
+  measure_latency?: boolean;
+  measure_throughput?: boolean;
+}) => postJson<CompareResponse>("/api/compare", body);
