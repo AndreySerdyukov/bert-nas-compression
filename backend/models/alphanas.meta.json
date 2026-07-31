@@ -1,0 +1,31 @@
+{
+  "kind": "huggingface",
+  "dir": "alphanas",
+  "hf_repo": "AndreySerdyukov/alphanas",
+  "hf_revision": "e9620fe43d485e31bc5f5f3604f6abf69f35460a",
+  "method": "alphanas",
+  "model_info": {
+    "name": "alphanas",
+    "label": "AlphaNAS",
+    "description": "Four encoder layers found by evolutionary search over the layer mask, then fine-tuned for two epochs.",
+    "method": "alphanas",
+    "params": 52780802,
+    "n_layers": 4
+  },
+  "arch": {
+    "name": "bert_sequence_classification",
+    "num_labels": 2,
+    "max_length": 512,
+    "n_layers": 4
+  },
+  "label_order": {
+    "positive_index": 1,
+    "id2label": {
+      "0": "negative",
+      "1": "positive"
+    },
+    "probe_agreement": 1.0,
+    "probe_reviews": 8,
+    "source": "measured by scripts/fetch_models.py against data/label_probe.json"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "hf_repo": "AndreySerdyukov/bert-imdb",
+  "hf_revision": "79678c3fb67dbaff65bba99a733ebd4f5e35265e",
+  "files": {
+    "config.json": {
+      "bytes": 687,
+      "sha256": "6e4c37cf0e3a845a39b7700a4631022f318838d3431850ffcb8c99f8166516f4"
+    },
+    "model.safetensors": {
+      "bytes": 437958648,
+      "sha256": "ea1c3998ac7f9c9a341ac2635b2bc9c8341ec9058c4a80d12971dddfb2846084"
+    },
+    "special_tokens_map.json": {
+      "bytes": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1272,
+      "sha256": "7b082b48a08a0b5c5939d99472e33addce3d96202155e33f7928cecd171186a0"
+    },
+    "vocab.txt": {
+      "bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    }
+  }
+}
