@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "note": "The four places the original project reported results, transcribed with their sources. They disagree with each other, which is the point: chapter 9 renders this as a matrix. Only `nas_results` scores every model on one test set with one harness, so it is the row this rebuild measures against. Nothing here is this project's own measurement - those live in benchmark.json.",
+  "sources": {
+    "nas_results": {
+      "label": "NAS_Results.ipynb",
+      "kind": "notebook",
+      "path": "notebooks/results/NAS_Results.ipynb",
+      "canonical": true,
+      "protocol": "15 000 test rows, batch 16, max_length 512, one Colab GPU. Latency is mean wall-clock per batch divided by 16, with no warm-up and no cuda.synchronize()."
+    },
+    "eval_notebook": {
+      "label": "the method's own eval notebook",
+      "kind": "notebook",
+      "canonical": false,
+      "protocol": "Same 15 000 rows, but each model scored in its own session by its own author."
+    },
+    "tech_report": {
+      "label": "tech report",
+      "kind": "pdf",
+      "canonical": false,
+      "protocol": "Stated in prose; the harness behind the figures is not described."
+    },
+    "presentation": {
+      "label": "NAS_Presentation.pptx",
+      "kind": "pptx",
+      "path": "papers/NAS_Presentation.pptx",
+      "canonical": false,
+      "protocol": "Slide 19, percentages. Transcribed from the deck."
+    }
+  },
+  "models": [
+    {
+      "key": "bert-andrey",
+      "label": "BERT-base (Andrey)",
+      "hf_repo": "AndreySerdyukov/bert-imdb",
+      "n_layers": 12,
+      "params": 109483778,
+      "accuracy": {
+        "nas_results": 0.933,
+        "eval_notebook": 0.9399,
+        "tech_report": 0.9399,
+        "presentation": 0.933
+      },
+      "ms_per_example": { "nas_results": 0.72, "presentation": 0.72 },
+      "notes": {
+        "eval_notebook": "Three-way split with early stopping on a held-out 7 000-row validation set; the only one of the three baselines with a third partition.",
+        "tech_report": "Quoted as 93.99% inside the Random Search and AlphaNAS reports as the reference model."
+      }
+    },
+    {
+      "key": "bert-ilya",
+      "label": "BERT-base (Ilya)",
+      "hf_repo": "ilkonz/all_imdb_bert",
+      "n_layers": 12,
+      "params": 109483778,
+      "accuracy": {
+        "nas_results": 0.9412,
+        "eval_notebook": 0.9412,
+        "presentation": 0.9412
+      },
+      "ms_per_example": { "nas_results": 0.68, "presentation": 0.68 },
+      "notes": {
+        "eval_notebook": "70/30 split only, so its evaluation set is the same 15 000 rows the shared test set uses. No model selection happened on it (save_strategy is off, three fixed epochs), so the figure stands - but it is not an independent holdout. The only run in the project that also reports F1 (0.9412)."
+      }
+    },
+    {
+      "key": "bert-alina",
+      "label": "BERT-base (Alina)",
+      "hf_repo": "alinaselivanets/bert-imdb",
+      "n_layers": 12,
+      "params": 109483778,
+      "accuracy": {
+        "nas_results": 0.9367,
+        "eval_notebook": 0.9188,
+        "presentation": 0.9367
+      },
+      "ms_per_example": { "nas_results": 0.65, "presentation": 0.65 },
+      "notes": {
+        "eval_notebook": "0.9188 in the notebook against 0.9367 when the uploaded checkpoint was re-scored: the largest single disagreement in the project, and evidence the two are different runs."
+      }
+    },
+    {
+      "key": "random-search",
+      "label": "Random Search",
+      "hf_repo": "AndreySerdyukov/random-search",
+      "n_layers": 5,
+      "params": 59868674,
+      "accuracy": {
+        "nas_results": 0.9077,
+        "eval_notebook": 0.9125,
+        "tech_report": 0.9125,
+        "presentation": 0.9077
+      },
+      "ms_per_example": { "nas_results": 0.35, "presentation": 0.35 },
+      "notes": {
+        "tech_report": "Reports 58.4M parameters, where the architecture it names has 59 868 674. Also states the search ran 10 iterations; the notebook ran 3."
+      }
+    },
+    {
+      "key": "alphanas",
+      "label": "AlphaNAS",
+      "hf_repo": "AndreySerdyukov/alphanas",
+      "n_layers": 4,
+      "params": 52780802,
+      "accuracy": {
+        "nas_results": 0.9027,
+        "eval_notebook": 0.9137,
+        "tech_report": 0.9137,
+        "presentation": 0.9027
+      },
+      "ms_per_example": { "nas_results": 0.3, "presentation": 0.3 },
+      "notes": {
+        "eval_notebook": "Fine-tuned for two epochs where Random Search and BANANAS used one, so its published figure is not on the same training budget as theirs."
+      }
+    },
+    {
+      "key": "bananas",
+      "label": "BANANAS",
+      "hf_repo": "alinaselivanets/bananas-bert",
+      "n_layers": 4,
+      "params": 52780802,
+      "accuracy": {
+        "nas_results": 0.9031,
+        "eval_notebook": 0.9031,
+        "tech_report": 0.905,
+        "presentation": 0.9031
+      },
+      "ms_per_example": { "nas_results": 0.31, "presentation": 0.31 },
+      "notes": {
+        "eval_notebook": "The only method whose eval notebook and the shared benchmark agree exactly.",
+        "tech_report": "90.5% appears nowhere in the notebook, which prints 0.9031."
+      }
+    },
+    {
+      "key": "adabert",
+      "label": "AdaBERT",
+      "hf_repo": "ilkonz/dnas",
+      "n_layers": null,
+      "params": 7814146,
+      "accuracy": {
+        "nas_results": 0.8801,
+        "eval_notebook": 0.8979,
+        "tech_report": 0.8979,
+        "presentation": 0.8801
+      },
+      "ms_per_example": { "nas_results": 0.02, "presentation": 0.02 },
+      "notes": {
+        "nas_results": "The FrozenAdaBERT class is redefined in this notebook without the five avg_pool cells the dnas notebook stacks. avg_pool is parameter-free so load_state_dict succeeds either way, but the forward passes differ - the most likely reason the same checkpoint scores 0.8979 there and 0.8801 here.",
+        "tech_report": "Gives the model's weight as 1-1.2 MB. 7 814 146 fp32 parameters are 31.3 MB, which is also the size of the file on the Hub and what the notebook itself says ('+-30 MB')."
+      }
+    }
+  ],
+  "latency_caveat": "Every ms/example figure above is mean wall-clock per batch divided by the batch size, taken with no warm-up and no CUDA synchronisation. That is a throughput number reported as a latency one, and on a GPU without synchronisation the timer can stop before the work does. The 0.02 ms attributed to AdaBERT is below what the harness could resolve. These are reproduced so they can be compared against a measurement, not because they are one."
+}

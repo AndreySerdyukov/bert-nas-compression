@@ -1,0 +1,1843 @@
+{
+  "schema": 1,
+  "source": "parsed from the selection notebooks by training/extract_notebook_data.py",
+  "params_formula": {
+    "base": 24429314,
+    "per_layer": 7087872
+  },
+  "methods": {
+    "random-search": {
+      "notebook": "notebooks/random_search/RandomSearch_Selection.ipynb",
+      "budget": {
+        "train_rows": 2800,
+        "val_rows": 700,
+        "max_length": 512,
+        "epochs_per_candidate": 1,
+        "fitness": "alpha * accuracy + beta * (1 - log(params + 1) / log(max_params))",
+        "fitness_params": {
+          "alpha": 0.3,
+          "beta": 0.7,
+          "max_params": 110000000
+        }
+      },
+      "candidates": [
+        {
+          "mask": [
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "layers": [
+            0,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "n_layers": 10,
+          "accuracy": 0.9157,
+          "params": 95308034,
+          "fitness": 0.2801,
+          "trial": 1,
+          "train_seconds": 227.12
+        },
+        {
+          "mask": [
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "layers": [
+            0,
+            2,
+            3,
+            4,
+            9
+          ],
+          "n_layers": 5,
+          "accuracy": 0.8329,
+          "params": 59868674,
+          "fitness": 0.2729,
+          "trial": 2,
+          "train_seconds": 123.11
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            0
+          ],
+          "layers": [
+            0,
+            1,
+            6,
+            8,
+            10
+          ],
+          "n_layers": 5,
+          "accuracy": 0.8429,
+          "params": 59868674,
+          "fitness": 0.2759,
+          "trial": 3,
+          "train_seconds": 124.65
+        }
+      ],
+      "stages": [
+        {
+          "name": "trial 1",
+          "index": 1
+        },
+        {
+          "name": "trial 2",
+          "index": 2
+        },
+        {
+          "name": "trial 3",
+          "index": 3
+        }
+      ]
+    },
+    "alphanas": {
+      "notebook": "notebooks/alphanas/AlphaNas_Selection.ipynb",
+      "budget": {
+        "train_rows": 5600,
+        "val_rows": 1400,
+        "max_length": 512,
+        "epochs_per_candidate": 1,
+        "fitness": "accuracy - 1e-8 * params, rejected if accuracy < 0.75 or params > 1e8",
+        "fitness_params": {
+          "penalty": 1e-08,
+          "min_accuracy": 0.75,
+          "max_params": 100000000.0
+        }
+      },
+      "candidates": [
+        {
+          "mask": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "n_layers": 12,
+          "accuracy": 0.8979,
+          "params": 109483778,
+          "fitness": null,
+          "generation": 1,
+          "rejected": true,
+          "rejection_reason": "parameter cap of 1e8 exceeded",
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            4,
+            6,
+            7,
+            11
+          ],
+          "n_layers": 6,
+          "accuracy": 0.8721,
+          "params": 66956546,
+          "fitness": 0.202577,
+          "generation": 1,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            2,
+            6,
+            7,
+            9,
+            11
+          ],
+          "n_layers": 7,
+          "accuracy": 0.8693,
+          "params": 74044418,
+          "fitness": 0.128842,
+          "generation": 1,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            1,
+            2,
+            6,
+            11
+          ],
+          "n_layers": 4,
+          "accuracy": 0.8493,
+          "params": 52780802,
+          "fitness": 0.321478,
+          "generation": 1,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            1,
+            2,
+            6,
+            11
+          ],
+          "n_layers": 4,
+          "accuracy": 0.8493,
+          "params": 52780802,
+          "fitness": 0.321478,
+          "generation": 2,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            4,
+            6,
+            7,
+            11
+          ],
+          "n_layers": 6,
+          "accuracy": 0.8786,
+          "params": 66956546,
+          "fitness": 0.209006,
+          "generation": 2,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            2,
+            4,
+            7,
+            11
+          ],
+          "n_layers": 6,
+          "accuracy": 0.8679,
+          "params": 66956546,
+          "fitness": 0.198292,
+          "generation": 2,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "layers": [
+            1,
+            6,
+            9,
+            10,
+            11
+          ],
+          "n_layers": 5,
+          "accuracy": 0.845,
+          "params": 59868674,
+          "fitness": 0.246313,
+          "generation": 2,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            1,
+            2,
+            6,
+            11
+          ],
+          "n_layers": 4,
+          "accuracy": 0.8536,
+          "params": 52780802,
+          "fitness": 0.325763,
+          "generation": 3,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "layers": [
+            1,
+            6,
+            9,
+            10,
+            11
+          ],
+          "n_layers": 5,
+          "accuracy": 0.8436,
+          "params": 59868674,
+          "fitness": 0.244885,
+          "generation": 3,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "layers": [
+            1,
+            3,
+            5,
+            6,
+            10,
+            11
+          ],
+          "n_layers": 6,
+          "accuracy": 0.8614,
+          "params": 66956546,
+          "fitness": 0.191863,
+          "generation": 3,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "layers": [
+            1,
+            8,
+            9,
+            10,
+            11
+          ],
+          "n_layers": 5,
+          "accuracy": 0.8543,
+          "params": 59868674,
+          "fitness": 0.255599,
+          "generation": 3,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": false
+        },
+        {
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "layers": [
+            1,
+            2,
+            6,
+            11
+          ],
+          "n_layers": 4,
+          "accuracy": 0.7679,
+          "params": 52780802,
+          "fitness": 0.240049,
+          "generation": 3,
+          "rejected": false,
+          "rejection_reason": null,
+          "final_reevaluation": true
+        }
+      ],
+      "stages": [
+        {
+          "name": "generation 1",
+          "index": 1
+        },
+        {
+          "name": "generation 2",
+          "index": 2
+        },
+        {
+          "name": "generation 3",
+          "index": 3
+        }
+      ]
+    },
+    "bananas": {
+      "notebook": "notebooks/bananas/BANANAS_Selection.ipynb",
+      "budget": {
+        "train_rows": 560,
+        "val_rows": 140,
+        "max_length": 128,
+        "epochs_per_candidate": 1,
+        "fitness": "accuracy - 1e-8 * params",
+        "fitness_params": {
+          "penalty": 1e-08
+        },
+        "surrogate": "ensemble of 3 MLPs (12 -> 16 -> 16 -> 1), MSE, independent Thompson sampling"
+      },
+      "candidates": [
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "layers": [
+            1,
+            3,
+            6,
+            7,
+            9
+          ],
+          "n_layers": 5,
+          "accuracy": 0.6786,
+          "params": 59868674,
+          "fitness": 0.079885,
+          "index": 1,
+          "phase": "initial"
+        },
+        {
+          "mask": [
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7,
+            8,
+            9,
+            11
+          ],
+          "n_layers": 9,
+          "accuracy": 0.6929,
+          "params": 88220162,
+          "fitness": -0.189344,
+          "index": 2,
+          "phase": "initial"
+        },
+        {
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1
+          ],
+          "layers": [
+            0,
+            3,
+            4,
+            5,
+            9,
+            11
+          ],
+          "n_layers": 6,
+          "accuracy": 0.5857,
+          "params": 66956546,
+          "fitness": -0.083851,
+          "index": 3,
+          "phase": "initial"
+        },
+        {
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "layers": [
+            0,
+            3,
+            4,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "n_layers": 9,
+          "accuracy": 0.6643,
+          "params": 88220162,
+          "fitness": -0.217916,
+          "index": 4,
+          "phase": "initial"
+        },
+        {
+          "mask": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0
+          ],
+          "layers": [
+            2,
+            4,
+            6,
+            7,
+            9,
+            10
+          ],
+          "n_layers": 6,
+          "accuracy": 0.6071,
+          "params": 66956546,
+          "fitness": -0.062423,
+          "index": 5,
+          "phase": "initial"
+        },
+        {
+          "mask": [
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "layers": [
+            0,
+            2,
+            3,
+            4,
+            6,
+            7,
+            9
+          ],
+          "n_layers": 7,
+          "accuracy": 0.6,
+          "params": 74044418,
+          "fitness": -0.140444,
+          "index": 6,
+          "phase": "bayesian"
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "layers": [
+            0,
+            1,
+            6,
+            9
+          ],
+          "n_layers": 4,
+          "accuracy": 0.6214,
+          "params": 52780802,
+          "fitness": 0.093621,
+          "index": 7,
+          "phase": "bayesian"
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "layers": [
+            0,
+            1,
+            6,
+            9
+          ],
+          "n_layers": 4,
+          "accuracy": 0.5786,
+          "params": 52780802,
+          "fitness": 0.050763,
+          "index": 8,
+          "phase": "bayesian"
+        },
+        {
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "layers": [
+            0,
+            1,
+            6,
+            7
+          ],
+          "n_layers": 4,
+          "accuracy": 0.5857,
+          "params": 52780802,
+          "fitness": 0.057906,
+          "index": 9,
+          "phase": "bayesian"
+        },
+        {
+          "mask": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0
+          ],
+          "layers": [
+            1,
+            3,
+            9,
+            10
+          ],
+          "n_layers": 4,
+          "accuracy": 0.6,
+          "params": 52780802,
+          "fitness": 0.072192,
+          "index": 10,
+          "phase": "bayesian"
+        }
+      ],
+      "proposals": [
+        {
+          "round": 1,
+          "mask": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.031418
+        },
+        {
+          "round": 1,
+          "mask": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.0443
+        },
+        {
+          "round": 1,
+          "mask": [
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.176591
+        },
+        {
+          "round": 1,
+          "mask": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.120918
+        },
+        {
+          "round": 1,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1
+          ],
+          "n_layers": 8,
+          "predicted_fitness": -0.141223
+        },
+        {
+          "round": 1,
+          "mask": [
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.118186
+        },
+        {
+          "round": 1,
+          "mask": [
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1
+          ],
+          "n_layers": 8,
+          "predicted_fitness": -0.134766
+        },
+        {
+          "round": 1,
+          "mask": [
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": 0.017867
+        },
+        {
+          "round": 1,
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.146226
+        },
+        {
+          "round": 1,
+          "mask": [
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": 0.006195
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.086119
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.137664
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.043168
+        },
+        {
+          "round": 2,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.088915
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.106308
+        },
+        {
+          "round": 2,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 8,
+          "predicted_fitness": -0.128375
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "n_layers": 8,
+          "predicted_fitness": -0.21565
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.130532
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.100819
+        },
+        {
+          "round": 2,
+          "mask": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 9,
+          "predicted_fitness": -0.202693
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.073503
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.048368
+        },
+        {
+          "round": 3,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.037401
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.045497
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.023539
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": 0.015998
+        },
+        {
+          "round": 3,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": 0.088237
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": 0.01224
+        },
+        {
+          "round": 3,
+          "mask": [
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.127253
+        },
+        {
+          "round": 3,
+          "mask": [
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.19359
+        },
+        {
+          "round": 4,
+          "mask": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.09342
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.143435
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": 0.030654
+        },
+        {
+          "round": 4,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.08391
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.067648
+        },
+        {
+          "round": 4,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.084531
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": 0.048429
+        },
+        {
+          "round": 4,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": 0.060456
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.058904
+        },
+        {
+          "round": 4,
+          "mask": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.176576
+        },
+        {
+          "round": 5,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.045183
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.089197
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.079875
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.147243
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.031025
+        },
+        {
+          "round": 5,
+          "mask": [
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1
+          ],
+          "n_layers": 7,
+          "predicted_fitness": -0.145677
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "n_layers": 4,
+          "predicted_fitness": -0.086694
+        },
+        {
+          "round": 5,
+          "mask": [
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "n_layers": 6,
+          "predicted_fitness": -0.049333
+        },
+        {
+          "round": 5,
+          "mask": [
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          "n_layers": 5,
+          "predicted_fitness": -0.030672
+        },
+        {
+          "round": 5,
+          "mask": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0
+          ],
+          "n_layers": 4,
+          "predicted_fitness": 0.065236
+        }
+      ],
+      "stages": []
+    }
+  }
+}
