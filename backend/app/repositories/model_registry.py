@@ -49,8 +49,13 @@ class ModelRegistry:
     _models: dict[str, LoadedModel] = field(default_factory=dict, init=False)
     _skipped: dict[str, SkippedModel] = field(default_factory=dict, init=False)
 
-    def load(self) -> None:
-        """Read every manifest and build what can be built."""
+    def load(self, only: str | None = None) -> None:
+        """Read every manifest and build what can be built.
+
+        `only` builds a single model and ignores the rest. The benchmark uses it to load one
+        checkpoint at a time when it measures how much memory each one costs - a figure that means
+        nothing if five of them are resident at once.
+        """
         self._models.clear()
         self._skipped.clear()
         if not self.models_dir.exists():
@@ -61,6 +66,8 @@ class ModelRegistry:
         for path in sorted(self.models_dir.glob("*.meta.json")):
             manifest = json.loads(path.read_text(encoding="utf-8"))
             name = str(manifest.get("dir") or path.name.removesuffix(".meta.json"))
+            if only is not None and name != only:
+                continue
             try:
                 info = self._describe(manifest)
             except (KeyError, TypeError, ValueError) as exc:

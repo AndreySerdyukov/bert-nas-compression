@@ -26,13 +26,23 @@ def test_the_committed_documents_are_served(client: TestClient, path: str) -> No
     assert isinstance(response.json(), dict)
 
 
-def test_the_benchmark_says_what_to_run_when_it_is_missing(client: TestClient) -> None:
-    """Nine of the ten chapters work without it, so its absence is a 503, not a broken app."""
-    response = client.get("/api/benchmark")
+@pytest.mark.parametrize(
+    ("document", "script"),
+    [("benchmark", "training.benchmark"), ("controls", "training.train_reference")],
+)
+def test_a_measured_document_says_what_to_run_when_it_is_missing(
+    client: TestClient, document: str, script: str
+) -> None:
+    """Nine of the ten chapters work without either, so absence is a 503, not a broken app.
+
+    Each names its own producer. One shared message that named the benchmark script would send a
+    reader to run the wrong thing for hours.
+    """
+    response = client.get(f"/api/{document}")
     if response.status_code == 200:
-        pytest.skip("benchmark.json has been generated on this machine")
+        pytest.skip(f"{document}.json has been generated on this machine")
     assert response.status_code == 503
-    assert "training/benchmark.py" in response.json()["detail"]
+    assert script in response.json()["detail"]
 
 
 def test_architectures_carries_the_random_search_disagreement(client: TestClient) -> None:
