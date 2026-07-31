@@ -1,0 +1,31 @@
+{
+  "kind": "huggingface",
+  "dir": "bananas",
+  "hf_repo": "alinaselivanets/bananas-bert",
+  "hf_revision": "05150dab0ec9b37c6f8d36ec5fe1b58e2c8f6f36",
+  "method": "bananas",
+  "model_info": {
+    "name": "bananas",
+    "label": "BANANAS",
+    "description": "Four encoder layers found by Bayesian optimisation over a surrogate model, then fine-tuned for one epoch.",
+    "method": "bananas",
+    "params": 52780802,
+    "n_layers": 4
+  },
+  "arch": {
+    "name": "bert_sequence_classification",
+    "num_labels": 2,
+    "max_length": 512,
+    "n_layers": 4
+  },
+  "label_order": {
+    "positive_index": 1,
+    "id2label": {
+      "0": "negative",
+      "1": "positive"
+    },
+    "probe_agreement": 1.0,
+    "probe_reviews": 8,
+    "source": "measured by scripts/fetch_models.py against data/label_probe.json"
+  }
+}

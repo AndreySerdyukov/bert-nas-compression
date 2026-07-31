@@ -1,0 +1,26 @@
+{
+  "hf_repo": "AndreySerdyukov/random-search",
+  "hf_revision": "f76a82a54344974fb852f2e21f51db716b420d0d",
+  "files": {
+    "config.json": {
+      "bytes": 686,
+      "sha256": "807c9a36ab07e1a59554ac16177fe4c564703ba5f60866ae62c3abee55a220e8"
+    },
+    "model.safetensors": {
+      "bytes": 239485016,
+      "sha256": "b487f519b6ae450a658ad2bbd53ed604c8deadfa9674e835c99b905b69f8b1ea"
+    },
+    "special_tokens_map.json": {
+      "bytes": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1272,
+      "sha256": "7b082b48a08a0b5c5939d99472e33addce3d96202155e33f7928cecd171186a0"
+    },
+    "vocab.txt": {
+      "bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "hf_repo": "AndreySerdyukov/alphanas",
+  "hf_revision": "e9620fe43d485e31bc5f5f3604f6abf69f35460a",
+  "files": {
+    "config.json": {
+      "bytes": 686,
+      "sha256": "0fda9b0dfaf3fe909a80f5c2cc9b7a4e4d2db9a7fea48e0d4818eac044b21965"
+    },
+    "model.safetensors": {
+      "bytes": 211131648,
+      "sha256": "37cd66ee840b7a4259355e53a8489e1a58ae341ea14a19459f05c3a3b58418e9"
+    },
+    "special_tokens_map.json": {
+      "bytes": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1272,
+      "sha256": "7b082b48a08a0b5c5939d99472e33addce3d96202155e33f7928cecd171186a0"
+    },
+    "vocab.txt": {
+      "bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    }
+  }
+}

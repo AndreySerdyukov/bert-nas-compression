@@ -21,8 +21,8 @@ Two files come out of this:
                                  rather than something to reconcile away.
 
 Run (from the backend directory, inside .venv):
-    python training/extract_notebook_data.py            # rewrite both files
-    python training/extract_notebook_data.py --check    # verify them, write nothing
+    python -m training.extract_notebook_data            # rewrite both files
+    python -m training.extract_notebook_data --check    # verify them, write nothing
 """
 
 from __future__ import annotations
@@ -449,14 +449,14 @@ def main() -> int:
             serialized = json.dumps(built, indent=2, ensure_ascii=False) + "\n"
             if not path.exists():
                 print(
-                    f"{path.name} is missing; run training/extract_notebook_data.py",
+                    f"{path.name} is missing; run python -m training.extract_notebook_data",
                     file=sys.stderr,
                 )
                 return 1
             if path.read_text(encoding="utf-8") != serialized:
                 print(
                     f"{path.name} no longer matches the notebooks it was parsed from.\n"
-                    "Re-run training/extract_notebook_data.py and commit the result.",
+                    "Re-run python -m training.extract_notebook_data and commit the result.",
                     file=sys.stderr,
                 )
                 return 1

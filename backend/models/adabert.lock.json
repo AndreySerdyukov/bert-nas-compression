@@ -1,0 +1,26 @@
+{
+  "hf_repo": "ilkonz/dnas",
+  "hf_revision": "36f59582dff22e51c507cbb73390457b0538f9e2",
+  "files": {
+    "frozen_adabert.pt": {
+      "bytes": 31258949,
+      "sha256": "fd3c5b009d896c6a9b2eee9596d9261a5bdcaf370520dbc32a7c57645b63002a"
+    },
+    "special_tokens_map.json": {
+      "bytes": 695,
+      "sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a"
+    },
+    "tokenizer.json": {
+      "bytes": 711661,
+      "sha256": "da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1329,
+      "sha256": "4bb02f1b2680f6d0b0baac56b23ec5ad22049cfac1f8b808fed4e1bfe6ba6422"
+    },
+    "vocab.txt": {
+      "bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    }
+  }
+}

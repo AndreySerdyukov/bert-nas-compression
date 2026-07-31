@@ -1,0 +1,24 @@
+{
+  "kind": "adabert",
+  "dir": "adabert",
+  "hf_repo": "ilkonz/dnas",
+  "hf_revision": "36f59582dff22e51c507cbb73390457b0538f9e2",
+  "method": "adabert",
+  "model_info": {
+    "name": "adabert",
+    "label": "AdaBERT",
+    "description": "Differentiable NAS with distillation. Every searched operation came out parameter-free, so the shipped network is an embedding table, a mean over tokens and a linear layer.",
+    "method": "adabert"
+  },
+  "arch": {
+    "name": "frozen_adabert",
+    "weights": "frozen_adabert.pt",
+    "vocab_size": 30522,
+    "hidden_size": 256,
+    "num_labels": 2
+  },
+  "label_order": {
+    "positive_index": 1,
+    "source": "assumed, verified at load"
+  }
+}

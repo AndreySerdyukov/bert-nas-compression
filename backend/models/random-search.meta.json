@@ -1,0 +1,31 @@
+{
+  "kind": "huggingface",
+  "dir": "random-search",
+  "hf_repo": "AndreySerdyukov/random-search",
+  "hf_revision": "f76a82a54344974fb852f2e21f51db716b420d0d",
+  "method": "random-search",
+  "model_info": {
+    "name": "random-search",
+    "label": "Random Search",
+    "description": "Five encoder layers found by random sampling over the layer mask, then fine-tuned for one epoch.",
+    "method": "random-search",
+    "params": 59868674,
+    "n_layers": 5
+  },
+  "arch": {
+    "name": "bert_sequence_classification",
+    "num_labels": 2,
+    "max_length": 512,
+    "n_layers": 5
+  },
+  "label_order": {
+    "positive_index": 1,
+    "id2label": {
+      "0": "negative",
+      "1": "positive"
+    },
+    "probe_agreement": 1.0,
+    "probe_reviews": 8,
+    "source": "measured by scripts/fetch_models.py against data/label_probe.json"
+  }
+}

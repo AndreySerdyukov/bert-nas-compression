@@ -1,0 +1,31 @@
+{
+  "kind": "huggingface",
+  "dir": "bert-imdb",
+  "hf_repo": "AndreySerdyukov/bert-imdb",
+  "hf_revision": "79678c3fb67dbaff65bba99a733ebd4f5e35265e",
+  "method": null,
+  "model_info": {
+    "name": "bert-imdb",
+    "label": "BERT-base",
+    "description": "The uncompressed reference: bert-base-uncased fine-tuned on IMDB with a three-way split and early stopping on a held-out validation set.",
+    "method": null,
+    "params": 109483778,
+    "n_layers": 12
+  },
+  "arch": {
+    "name": "bert_sequence_classification",
+    "num_labels": 2,
+    "max_length": 512,
+    "n_layers": 12
+  },
+  "label_order": {
+    "positive_index": 1,
+    "id2label": {
+      "0": "negative",
+      "1": "positive"
+    },
+    "probe_agreement": 1.0,
+    "probe_reviews": 8,
+    "source": "measured by scripts/fetch_models.py against data/label_probe.json"
+  }
+}
