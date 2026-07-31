@@ -61,7 +61,27 @@ WARMUP_RATIO = 0.1
 N_LAYERS = 12
 RANDOM_SEEDS = (0, 1, 2, 3, 4)
 
+# DistilBERT is six layers, each the same width as BERT's, so a step of it costs what a six-layer
+# mask costs and the probe can price it without downloading it.
+DISTILBERT_LAYERS = 6
+
+# The depths the plan actually contains, and therefore the depths the probe measures. Nothing is
+# extrapolated: see `probe` for the reading that made extrapolation untenable.
+PROBE_DEPTHS = (4, 5, DISTILBERT_LAYERS)
+
+# Batches of the scoring pass to time per depth. Enough to leave the first-batch cost behind,
+# few enough that the probe stays a probe.
+PROBE_EVAL_BATCHES = 8
+
 Kind = Literal["tfidf", "mask", "distilbert"]
+
+
+@dataclass(frozen=True)
+class DepthCost:
+    """What one encoder depth costs, in the two passes a control actually pays for."""
+
+    train_seconds_per_step: float
+    eval_seconds_per_row: float
 
 
 @dataclass(frozen=True)
@@ -273,38 +293,78 @@ def train_transformer(
 # --- the time probe ------------------------------------------------------------------------------
 
 
-def probe(device: str, frame: Any, tracker: Any, batches: int) -> dict[int, float]:
-    """Measure seconds per step at two depths and interpolate the rest.
+def probe(device: str, frame: Any, tracker: Any, batches: int) -> dict[int, DepthCost]:
+    """Measure what a step and a scored row cost at every depth the plan actually contains.
 
-    The cost of a step is close to linear in the number of encoder layers, so two real measurements
-    pin the line and every other control's projection follows from it. Measuring all eighteen would
-    take as long as running them.
+    The first version measured 4 and 12 layers and drew a line through them, on the reasoning that
+    a step is near-linear in depth. It is not, at this batch and sequence length: 4 layers came out
+    at 832 ms and 12 at 6576, which is 7.9x the cost for 3x the depth, because a twelve-layer
+    backward pass over 16 sequences of 512 tokens runs into unified memory and the rest is paging.
+    Extrapolating a budget from that overstated every control by half.
+
+    So there is no extrapolation now. The plan holds three depths - 4 and 5 for the masks, 6 for
+    DistilBERT - and all three are measured. It is also cheaper than the version it replaces: the
+    twelve-layer probe alone cost more than these three together.
     """
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-    measured: dict[int, float] = {}
-    for depth in (4, 12):
+    measured: dict[int, DepthCost] = {}
+    for depth in PROBE_DEPTHS:
         with tracker.stage(f"probing {depth} layers"):
             model = masked_bert(tuple(range(depth)))
             cost = train_transformer(
                 model, tokenizer, frame, device, tracker, f"{depth} layers", max_batches=batches
             )
-            measured[depth] = cost["seconds_per_step"]
+            per_row = _eval_seconds_per_row(model, tokenizer, frame, device)
+            measured[depth] = DepthCost(
+                train_seconds_per_step=cost["seconds_per_step"], eval_seconds_per_row=per_row
+            )
             tracker.write(
-                f"{depth} layers: {cost['seconds_per_step'] * 1000:.0f} ms/step "
-                f"over {cost['steps']} steps"
+                f"{depth} layers: {cost['seconds_per_step'] * 1000:.0f} ms/step training "
+                f"over {cost['steps']} steps, {per_row * 1000:.1f} ms/row scoring"
             )
             del model
     return measured
 
 
-def project(measured: dict[int, float], steps_per_epoch: int) -> list[tuple[Control, float]]:
-    """Wall-clock for each control, from the two measured depths."""
-    low, high = measured[4], measured[12]
-    slope = (high - low) / (12 - 4)
-    intercept = low - slope * 4
+def _eval_seconds_per_row(model: Any, tokenizer: Any, frame: Any, device: str) -> float:
+    """Seconds per row of the scoring pass, which every control pays after it finishes training.
 
+    Left out of the first schedule, and it is not a rounding error: scoring 15 000 rows takes about
+    three minutes per control, which over seventeen of them is an hour that the budget was told
+    nothing about. A schedule that omits it will report that all eighteen fit in a night when they
+    do not, and the runs it silently drops are the last ones in priority order.
+    """
+    import torch
+
+    texts = frame["review"].tolist()[: EVAL_BATCH * PROBE_EVAL_BATCHES]
+    model.eval()
+    started = time.perf_counter()
+    for start in range(0, len(texts), EVAL_BATCH):
+        batch = texts[start : start + EVAL_BATCH]
+        encoded = tokenizer(
+            batch, truncation=True, max_length=MAX_LENGTH, padding=True, return_tensors="pt"
+        )
+        with torch.inference_mode():
+            model(**{k: v.to(device) for k, v in encoded.items()})
+    if device == "mps":
+        torch.mps.synchronize()
+    model.train()
+    return (time.perf_counter() - started) / max(len(texts), 1)
+
+
+def project(
+    measured: dict[int, DepthCost], steps_per_epoch: int, test_rows: int
+) -> list[tuple[Control, float]]:
+    """Wall-clock for each control, from the depth that was measured for it.
+
+    Every depth in the plan is in `measured`, so this reads a number rather than fitting one. A
+    depth that is somehow missing falls back to the nearest measured one, which is a worse estimate
+    but an honest one - the alternative is a line through two points that were never on a line.
+
+    Training and scoring are both counted, because a control is not done until it has a number.
+    """
     projected: list[tuple[Control, float]] = []
     for control in controls():
         if control.kind == "tfidf":
@@ -312,8 +372,14 @@ def project(measured: dict[int, float], steps_per_epoch: int) -> list[tuple[Cont
             projected.append((control, 3 * 60))
             continue
         # DistilBERT is six layers, and each is the same width as BERT's.
-        depth = control.n_layers if control.n_layers is not None else 6
-        projected.append((control, (intercept + slope * depth) * steps_per_epoch * EPOCHS))
+        depth = control.n_layers if control.n_layers is not None else DISTILBERT_LAYERS
+        nearest = min(measured, key=lambda known: abs(known - depth))
+        cost = measured.get(depth, measured[nearest])
+        seconds = (
+            cost.train_seconds_per_step * steps_per_epoch * EPOCHS
+            + cost.eval_seconds_per_row * test_rows
+        )
+        projected.append((control, seconds))
     return projected
 
 
@@ -341,7 +407,8 @@ def print_schedule(projected: list[tuple[Control, float]], budget_hours: float |
     if budget_hours is not None:
         print(f"in {budget_hours:g} h: the first {fits} of them")
     print(
-        "\nProjected from two measured depths, one epoch each, at the notebooks' protocol "
+        f"\nEach depth in the plan was measured, not interpolated: {', '.join(str(d) for d in PROBE_DEPTHS)} "
+        "layers. Training and scoring are both counted, one epoch at the notebooks' protocol "
         f"({MAX_LENGTH} tokens, batch {BATCH_SIZE}). Whatever is actually run is what "
         "controls.json records - the file names the runs, not the plan."
     )
@@ -376,13 +443,14 @@ def main() -> int:
 
     if args.time_probe:
         steps_per_epoch = (len(split.train) + BATCH_SIZE - 1) // BATCH_SIZE
-        stages = ["probing 4 layers", "probing 12 layers"]
+        stages = [f"probing {depth} layers" for depth in PROBE_DEPTHS]
         with StageTracker(stages, desc="time probe") as tracker:
             tracker.write(
-                f"{len(split.train)} training rows, {steps_per_epoch} steps per epoch on {device}"
+                f"{len(split.train)} training rows, {steps_per_epoch} steps per epoch on {device}; "
+                f"scoring {len(split.test)} test rows after each control"
             )
             measured = probe(device, split.train, tracker, args.probe_batches)
-        print_schedule(project(measured, steps_per_epoch), args.budget_hours)
+        print_schedule(project(measured, steps_per_epoch, len(split.test)), args.budget_hours)
         return 0
 
     selected = [c for c in controls() if not args.only or c.key in args.only]

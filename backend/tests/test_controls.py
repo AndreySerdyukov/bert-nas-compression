@@ -11,12 +11,15 @@ import pytest
 
 from training.train_reference import (
     BATCH_SIZE,
+    DISTILBERT_LAYERS,
     EPOCHS,
     LEARNING_RATE,
     MAX_LENGTH,
+    PROBE_DEPTHS,
     RANDOM_SEEDS,
     WARMUP_RATIO,
     WEIGHT_DECAY,
+    DepthCost,
     controls,
     evenly_spaced,
     project,
@@ -78,16 +81,65 @@ def test_every_control_carries_the_question_it_exists_to_answer() -> None:
             assert control.layers is not None and control.n_layers in (4, 5)
 
 
-def test_the_projection_scales_with_depth_and_names_the_total() -> None:
-    """Two measured depths pin the line; measuring all eighteen would cost as much as running them."""
-    projected = project({4: 0.4, 12: 1.2}, steps_per_epoch=1750)
+def test_every_depth_in_the_plan_is_a_depth_the_probe_measures() -> None:
+    """The projection reads a measurement per depth, so the probe has to cover the plan.
+
+    A control at a depth nobody probed would be priced off the nearest one, which is how the
+    first version of this - a line drawn from 4 layers to 12 - overstated a night by half.
+    """
+    needed = {
+        control.n_layers if control.n_layers is not None else DISTILBERT_LAYERS
+        for control in controls()
+        if control.kind != "tfidf"
+    }
+    assert needed <= set(PROBE_DEPTHS)
+
+
+def test_each_control_is_projected_from_its_own_measured_depth() -> None:
+    """No interpolation: 5 layers costs what 5 layers was measured to cost, not what a line says."""
+    measured = {
+        4: DepthCost(train_seconds_per_step=0.4, eval_seconds_per_row=0.0),
+        5: DepthCost(train_seconds_per_step=0.55, eval_seconds_per_row=0.0),
+        6: DepthCost(train_seconds_per_step=0.9, eval_seconds_per_row=0.0),
+    }
+    projected = project(measured, steps_per_epoch=1750, test_rows=15_000)
     by_key = {control.key: seconds for control, seconds in projected}
 
-    # 4 layers at 0.4 s a step over 1750 steps.
     assert by_key["uniform-4"] == pytest.approx(0.4 * 1750)
-    assert by_key["uniform-5"] == pytest.approx(0.5 * 1750)
-    # DistilBERT is six layers of the same width, so it lands on the same line.
-    assert by_key["distilbert"] == pytest.approx(0.6 * 1750)
+    # A fitted line through 4 and 6 would say 0.65 here. The measurement says 0.55, and the
+    # measurement wins - that gap over seven five-layer runs is an hour of a night.
+    assert by_key["uniform-5"] == pytest.approx(0.55 * 1750)
+    assert by_key["distilbert"] == pytest.approx(0.9 * 1750)
     # The one control that is not a transformer does not get a transformer's projection.
     assert by_key["tfidf"] < 60 * 10
     assert len(projected) == len(controls())
+
+
+def test_the_schedule_counts_the_scoring_pass_every_control_pays() -> None:
+    """Omitted at first, and it is an hour over seventeen controls - the tail of the priority list.
+
+    A schedule that counts only training reports that everything fits in a night, and the runs it
+    then drops without saying so are the last ones planned, which is the whole point of the order.
+    """
+    training_only = {4: DepthCost(train_seconds_per_step=0.4, eval_seconds_per_row=0.0)}
+    with_scoring = {4: DepthCost(train_seconds_per_step=0.4, eval_seconds_per_row=0.01)}
+
+    bare = {
+        control.key: seconds
+        for control, seconds in project(training_only, steps_per_epoch=1000, test_rows=15_000)
+    }
+    full = {
+        control.key: seconds
+        for control, seconds in project(with_scoring, steps_per_epoch=1000, test_rows=15_000)
+    }
+    assert full["uniform-4"] - bare["uniform-4"] == pytest.approx(150.0)
+    # The tf-idf control is not scored on a GPU and does not pick up the transformer's eval cost.
+    assert full["tfidf"] == bare["tfidf"]
+
+
+def test_a_missing_depth_falls_back_to_the_nearest_measurement() -> None:
+    """An interrupted probe should still produce a schedule, and an approximate one it can name."""
+    measured = {4: DepthCost(train_seconds_per_step=0.4, eval_seconds_per_row=0.0)}
+    projected = project(measured, steps_per_epoch=1000, test_rows=15_000)
+    by_key = {control.key: seconds for control, seconds in projected}
+    assert by_key["uniform-5"] == pytest.approx(0.4 * 1000)
