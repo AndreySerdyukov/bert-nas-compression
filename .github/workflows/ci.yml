@@ -35,6 +35,11 @@ jobs:
       - name: Type-check
         run: mypy app training
 
+      # The committed data spine is parsed out of the notebooks, so it can go stale the moment
+      # anyone touches one. Re-parsing here is cheap and needs no weights.
+      - name: The committed data still matches the notebooks
+        run: python training/extract_notebook_data.py --check
+
       # No weights in CI, so everything that needs a checkpoint skips. The skip count is printed
       # on purpose: a test that skips in every environment is a test that does not exist, and
       # without this line that failure mode is invisible.

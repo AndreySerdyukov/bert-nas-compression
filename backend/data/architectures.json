@@ -1,0 +1,202 @@
+{
+  "schema": 1,
+  "source": "parsed from the eval notebooks by training/extract_notebook_data.py",
+  "baseline": {
+    "label": "BERT-base",
+    "hf_repo": "AndreySerdyukov/bert-imdb",
+    "n_layers": 12,
+    "params": 109483778,
+    "eval_notebook": "notebooks/bert_finetune/Bert_Finetune_Andrey.ipynb"
+  },
+  "params_formula": {
+    "base": 24429314,
+    "per_layer": 7087872
+  },
+  "methods": {
+    "random-search": {
+      "label": "Random Search",
+      "hf_repo": "AndreySerdyukov/random-search",
+      "eval_notebook": "notebooks/random_search/RandomSearch_Eval.ipynb",
+      "selection_notebook": "notebooks/random_search/RandomSearch_Selection.ipynb",
+      "shipped": {
+        "mask": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0
+        ],
+        "layers": [
+          0,
+          1,
+          5,
+          7,
+          9
+        ],
+        "n_layers": 5,
+        "params": 59868674,
+        "finetune_epochs": 1
+      },
+      "search_best": {
+        "mask": [
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0
+        ],
+        "layers": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "shipped_matches_search": false
+    },
+    "alphanas": {
+      "label": "AlphaNAS",
+      "hf_repo": "AndreySerdyukov/alphanas",
+      "eval_notebook": "notebooks/alphanas/AlphaNas_Eval.ipynb",
+      "selection_notebook": "notebooks/alphanas/AlphaNas_Selection.ipynb",
+      "shipped": {
+        "mask": [
+          0,
+          1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "layers": [
+          1,
+          2,
+          6,
+          11
+        ],
+        "n_layers": 4,
+        "params": 52780802,
+        "finetune_epochs": 2
+      },
+      "search_best": {
+        "mask": [
+          0,
+          1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "layers": [
+          1,
+          2,
+          6,
+          11
+        ]
+      },
+      "shipped_matches_search": true
+    },
+    "bananas": {
+      "label": "BANANAS",
+      "hf_repo": "alinaselivanets/bananas-bert",
+      "eval_notebook": "notebooks/bananas/BANANAS_Eval.ipynb",
+      "selection_notebook": "notebooks/bananas/BANANAS_Selection.ipynb",
+      "shipped": {
+        "mask": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "layers": [
+          0,
+          1,
+          6,
+          9
+        ],
+        "n_layers": 4,
+        "params": 52780802,
+        "finetune_epochs": 1
+      },
+      "search_best": {
+        "mask": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "layers": [
+          0,
+          1,
+          6,
+          9
+        ]
+      },
+      "shipped_matches_search": true
+    },
+    "adabert": {
+      "label": "AdaBERT",
+      "hf_repo": "ilkonz/dnas",
+      "eval_notebook": "notebooks/dnas/Differentiable_NAS.ipynb",
+      "selection_notebook": "notebooks/dnas/Differentiable_NAS.ipynb",
+      "shipped": {
+        "mask": null,
+        "layers": null,
+        "n_layers": null,
+        "params": 7814146,
+        "finetune_epochs": 3
+      },
+      "search_best": null,
+      "shipped_matches_search": null,
+      "note": "Gumbel-softmax selected avg_pool for all five surviving cells. avg_pool is parameter-free, so the shipped network is Embedding(30522, 256) -> mean over tokens -> Linear(256, 2): a bag of embeddings, not a distilled transformer."
+    }
+  }
+}
