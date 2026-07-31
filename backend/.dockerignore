@@ -1,0 +1,19 @@
+# The build context is ./backend, so these paths are relative to it.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Offline-only code: training and the fetch scripts never run inside the serving image, and
+# keeping them out means tqdm and the kaggle client are not image dependencies.
+tests/
+training/
+scripts/
+
+# Partial downloads and atomic-write leftovers must never be baked in.
+models/*.tmp
+models/.locks/
+models/.cache/

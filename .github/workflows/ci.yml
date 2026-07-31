@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main, rebuild]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to an exact release rather than a moving major tag: `v9` does not exist as a tag
+      # and a floating major is a supply-chain surface for no benefit.
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          # There is no uv.lock, so the cache key has to come from the dependency declaration.
+          cache-dependency-glob: backend/pyproject.toml
+
+      - name: Install
+        run: |
+          uv venv --python 3.12
+          uv pip install -e . --group dev
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Lint and format
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type-check
+        run: mypy app training
+
+      # No weights in CI, so everything that needs a checkpoint skips. The skip count is printed
+      # on purpose: a test that skips in every environment is a test that does not exist, and
+      # without this line that failure mode is invisible.
+      - name: Test
+        run: pytest -q -rs
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+
+      # The build must not have pulled an MDX runtime into the bundle, and the runtime dependency
+      # list must still be exactly three packages.
+      - run: npm run check:deps
+
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results/
+          retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The images are built without any model weights - they are gitignored and never committed.
+      # That is the point of this job: it proves the stack comes up and degrades honestly when
+      # there is nothing to serve, which is exactly the state of a fresh clone.
+      - name: Build
+        run: docker compose build
+
+      - name: Start
+        run: docker compose up -d
+
+      - name: Wait for the backend to report healthy
+        run: |
+          for _ in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q backend)")
+            [ "$status" = "healthy" ] && exit 0
+            [ "$status" = "unhealthy" ] && break
+            sleep 2
+          done
+          echo "backend never became healthy"
+          exit 1
+
+      - name: The API answers, and says it has no models
+        run: |
+          body=$(curl -fsS http://localhost:8000/health)
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"'
+          echo "$body" | grep -q '"models_loaded":0'
+
+      - name: nginx serves the bundle and proxies to the backend
+        run: |
+          curl -fsS http://localhost:3000/ | grep -q '<title>BERT NAS Compression</title>'
+          curl -fsS http://localhost:3000/health | grep -q '"status":"ok"'
+
+      - name: The backend runs unprivileged
+        run: test "$(docker compose exec -T backend id -u)" = "1000"
+
+      - name: Logs
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v

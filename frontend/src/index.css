@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light is the default here, unlike the dark-first billboard-planner: half of this app is a
+     ten-chapter text, and long-form reading is what the palette is tuned for.
+
+     Values are space-separated RGB so Tailwind's alpha modifiers work. */
+  :root {
+    --canvas: 255 255 255; /* page */
+    --surface: 250 250 249; /* cards, panels - a warm off-white, not a grey */
+    --raised: 243 243 241; /* row hover */
+    --ink: 24 24 27; /* primary text */
+    --slate: 90 96 104; /* secondary text */
+    --hair: 226 226 222; /* 1px separators */
+    --accent: 15 98 254; /* punctuation only: a kept layer, and the headline metric */
+  }
+
+  .dark {
+    --canvas: 14 15 17;
+    --surface: 22 23 26;
+    --raised: 31 32 36;
+    --ink: 234 235 238;
+    --slate: 150 156 164;
+    --hair: 45 47 52;
+    --accent: 120 169 255;
+  }
+
+  /* Measured, not guessed (frontend/scripts/contrast.mjs recomputes these):
+       light  ink 16.96:1  slate 6.08:1  accent 4.79:1   on --surface
+       dark   ink 15.04:1  slate 6.48:1  accent 7.61:1   on --surface
+     All clear 4.5:1, which is why --slate is this grey and not the paler one a docs site
+     tempts you into. */
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-sans tracking-tight;
+  }
+
+  /* Every figure in this app is a number that has to be compared against another number a line
+     above it. Proportional digits make columns jitter; these do not. */
+  .tnum,
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-panel border border-hair bg-surface;
+  }
+
+  .row {
+    @apply flex items-center gap-3 rounded-row px-3 py-2 text-[14px] transition-colors duration-150;
+  }
+  .row:hover {
+    @apply bg-raised;
+  }
+
+  .section-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-slate;
+  }
+
+  .field {
+    @apply w-full rounded-row border border-hair bg-canvas px-3 py-2 text-[15px] text-ink outline-none transition-colors duration-150;
+  }
+  .field:focus {
+    @apply border-slate;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-row bg-ink px-4 py-2 text-[14px] font-medium text-canvas transition-opacity duration-150 hover:opacity-90 disabled:opacity-40;
+  }
+
+  .kbd {
+    @apply inline-flex min-w-[20px] items-center justify-center rounded-[5px] border border-hair bg-raised px-1.5 py-0.5 font-mono text-[11px] leading-none text-slate;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/60 ring-offset-2 ring-offset-canvas;
+  }
+
+  /* The methodology prose. Deliberately hand-rolled rather than @tailwindcss/typography, whose
+     defaults are built around a grey ramp of its own - overriding it to these tokens costs more
+     lines than writing the rules does. Serif at 18px/1.7 because these are chapters, not UI. */
+  .prose-nas {
+    @apply font-serif text-[18px] leading-[1.7] text-ink;
+  }
+  .prose-nas > * + * {
+    @apply mt-5;
+  }
+  .prose-nas h2 {
+    @apply mt-12 font-sans text-[24px] font-semibold leading-tight;
+  }
+  .prose-nas h3 {
+    @apply mt-8 font-sans text-[18px] font-semibold leading-tight;
+  }
+  .prose-nas p {
+    @apply max-w-[68ch];
+  }
+  .prose-nas ul,
+  .prose-nas ol {
+    @apply max-w-[68ch] list-outside space-y-2 pl-6;
+  }
+  .prose-nas ul {
+    @apply list-disc;
+  }
+  .prose-nas ol {
+    @apply list-decimal;
+  }
+  .prose-nas a {
+    @apply text-accent underline underline-offset-2;
+  }
+  .prose-nas strong {
+    @apply font-semibold;
+  }
+  .prose-nas code {
+    @apply rounded-[4px] bg-raised px-1 py-0.5 font-mono text-[0.85em];
+  }
+  .prose-nas pre {
+    @apply overflow-x-auto rounded-row border border-hair bg-surface p-4 font-mono text-[13px] leading-relaxed;
+  }
+  .prose-nas pre code {
+    @apply bg-transparent p-0 text-[13px];
+  }
+  .prose-nas blockquote {
+    @apply border-l-2 border-hair pl-4 text-slate;
+  }
+  /* Tables carry the disagreement matrices, so they need to scroll rather than push the page. */
+  .prose-nas table {
+    @apply block w-full max-w-full overflow-x-auto font-sans text-[14px];
+  }
+  .prose-nas th {
+    @apply border-b border-hair px-3 py-2 text-left font-medium text-slate;
+  }
+  .prose-nas td {
+    @apply border-b border-hair px-3 py-2 align-top;
+  }
+}

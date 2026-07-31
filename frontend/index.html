@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>BERT NAS Compression</title>
+    <meta
+      name="description"
+      content="What Neural Architecture Search actually buys when compressing a BERT sentiment classifier - measured, with the controls it needs."
+    />
+    <script>
+      // Applied before first paint so a dark-theme reader never sees a white flash. Only ever
+      // adds the class; the light default needs no work.
+      try {
+        const stored = localStorage.getItem("theme");
+        const dark = stored
+          ? stored === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (dark) document.documentElement.classList.add("dark");
+      } catch {
+        /* private mode: stay on the light default */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
