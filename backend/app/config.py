@@ -29,9 +29,15 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     model_tier: ModelTier = "core"
-    # Off by default and deliberately so: the app publishes measured latency, and a lazily loaded
-    # model would fold seconds of loading into the first measurement a visitor ever sees.
-    lazy_models: bool = False
+
+    # The model every comparison is measured against. One baseline, on purpose: the point of
+    # comparison is the uncompressed reference, not three teammates' fine-tunes of it.
+    baseline_model: str = "bert-imdb"
+
+    # Serving runs on the CPU even where MPS is available. Latency is the number this application
+    # publishes, and a CPU figure is the one a reader can reproduce and compare; accuracy runs
+    # offline in training/benchmark.py, where mps is worth the extra device to reason about.
+    serve_device: str = "cpu"
 
     # Pinned to 1 so latency is comparable between models and between runs. Reported alongside
     # every measurement - a latency figure without its thread count is not a figure.
@@ -41,6 +47,14 @@ class Settings(BaseSettings):
     # uses larger values; these are what an interactive request can afford.
     latency_warmup: int = 3
     latency_repeats: int = 5
+    # Batch size for the throughput measurement, which is a different quantity from latency and
+    # is reported under a different name.
+    latency_batch: int = 16
+
+    # How long a request waits for the models before it is told the service is busy. The five
+    # checkpoints share one process and a pinned thread budget, so overlapping requests would
+    # measure each other rather than themselves.
+    busy_timeout_s: float = 20.0
 
     # Upper bound on an interactive evaluation job, so a stray request cannot pin the single
     # worker thread for an hour.

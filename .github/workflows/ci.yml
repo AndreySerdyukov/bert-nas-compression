@@ -112,6 +112,33 @@ jobs:
           echo "$body"
           echo "$body" | grep -q '"status":"ok"'
           echo "$body" | grep -q '"models_loaded":0'
+          # Five manifests, five skips. The difference between this and "nothing is configured"
+          # is the whole reason skipped models are reported rather than logged.
+          echo "$body" | grep -q '"models_skipped":5'
+
+      # Everything below goes through nginx on :3000 rather than straight to the backend, because
+      # the proxy is part of what is being tested.
+      - name: The catalog lists every manifest as skipped, with the command that fixes it
+        run: |
+          curl -fsS http://localhost:3000/api/models | tee /tmp/models.json
+          grep -q '"models":\[\]' /tmp/models.json
+          grep -q 'fetch_models.py --only adabert' /tmp/models.json
+
+      - name: A model whose weights are absent answers 503, naming the fetch script
+        run: |
+          code=$(curl -sS -o /tmp/predict.json -w '%{http_code}' \
+            -X POST http://localhost:3000/api/models/bert-imdb/predict \
+            -H 'Content-Type: application/json' -d '{"text":"a review"}')
+          cat /tmp/predict.json
+          test "$code" = "503"
+          grep -q 'fetch_models.py' /tmp/predict.json
+
+      - name: An invented model name is a 404, not a 503
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X POST http://localhost:3000/api/models/bert-huge/predict \
+            -H 'Content-Type: application/json' -d '{"text":"a review"}')
+          test "$code" = "404"
 
       - name: nginx serves the bundle and proxies to the backend
         run: |

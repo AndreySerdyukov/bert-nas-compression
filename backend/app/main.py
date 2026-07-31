@@ -14,11 +14,49 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import content, health
-from app.config import get_settings
+from app.api import content, health, models
+from app.config import Settings, get_settings
 from app.repositories.content import ContentRepository
+from app.repositories.model_registry import ModelRegistry
+from app.services.inference import InferenceService
 
 logger = logging.getLogger(__name__)
+
+
+def _build_registry(app: FastAPI, settings: Settings) -> None:
+    """Load the checkpoints, or explain in the log why there are none.
+
+    Eagerly, at startup, rather than on first use. The application publishes measured latency, and
+    a model loaded on demand would fold seconds of loading into the first measurement a visitor
+    ever saw. The cost is a slower boot; the alternative is a wrong number.
+
+    Weights are gitignored, so an empty registry is the ordinary state of a fresh clone. Whatever
+    fails to load is kept as a skipped entry with its reason, and the app comes up regardless -
+    the methodology half of it needs no weights at all.
+    """
+    if settings.model_tier == "none":
+        logger.info("serving is switched off (model_tier=none)")
+        return
+
+    from app.serving.runtime import configure_torch_threads
+
+    configure_torch_threads(settings.torch_threads)
+    registry = ModelRegistry(
+        models_dir=settings.models_dir,
+        data_dir=settings.data_dir,
+        baseline=settings.baseline_model,
+        device=settings.serve_device,
+    )
+    registry.load()
+    # Warm-up here is the polarity check: it is the last thing standing between a checkpoint that
+    # was replaced upstream and a confidently inverted prediction.
+    registry.warmup()
+    logger.info(
+        "registry ready: %d loaded, %d skipped", len(registry.list_infos()), len(registry.skipped)
+    )
+
+    app.state.registry = registry
+    app.state.inference = InferenceService(registry, settings)
 
 
 def create_app() -> FastAPI:
@@ -40,9 +78,11 @@ def create_app() -> FastAPI:
     # Committed JSON, read once. Nothing here needs weights, which is why the methodology half of
     # the app works on a clean clone.
     app.state.content = ContentRepository.load(settings.data_dir)
+    _build_registry(app, settings)
 
     app.include_router(health.router)
     app.include_router(content.router)
+    app.include_router(models.router)
 
     @app.exception_handler(Exception)
     async def unhandled(_: Request, exc: Exception) -> JSONResponse:
@@ -53,4 +93,7 @@ def create_app() -> FastAPI:
     return app
 
 
-app = create_app()
+# No module-level `app = create_app()`. Building the application now loads a gigabyte of weights,
+# and at module level that would happen on any import of this module - including pytest collecting
+# a test that never asks for a model. Uvicorn is pointed at the factory instead:
+#     uvicorn app.main:create_app --factory

@@ -122,7 +122,7 @@ cd backend
 uv venv --python 3.12
 uv pip install -e . --group dev
 python scripts/fetch_models.py         # ~1.1 GB from the Hub, once
-uv run uvicorn app.main:app --reload   # http://127.0.0.1:8000
+uv run uvicorn app.main:create_app --factory --reload   # http://127.0.0.1:8000
 
 # Frontend (another terminal)
 cd frontend

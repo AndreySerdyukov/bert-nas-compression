@@ -44,6 +44,18 @@ DATA_DIR = _BACKEND_DIR / "data"
 ALLOW_PATTERNS = ["*.json", "*.txt", "*.safetensors", "*.model", "*.pt"]
 IGNORE_PATTERNS = ["*.h5", "*.msgpack", "*.onnx", "tf_model*", "flax_model*", "pytorch_model.bin"]
 
+# The BERT descendants were selected and evaluated at 512 tokens.
+BERT_MAX_LENGTH = 512
+
+# AdaBERT is not a transformers snapshot and carries no config, so its architecture is transcribed
+# from the notebook that built and saved it - `notebooks/dnas/Differentiable_NAS.ipynb`, the cell
+# that constructs FrozenAdaBERT and writes frozen_adabert.pt.
+ADABERT_SELECTED_LAYERS = [1, 2, 5, 6, 7]
+ADABERT_SELECTED_OPS = ["avg_pool", "avg_pool", "avg_pool", "avg_pool", "avg_pool"]
+# Its training length, and not a serving preference: the network has no attention mask and means
+# over every position it is given, so the same weights score 89.45% at 128 tokens and 86.95% at 512.
+ADABERT_MAX_LENGTH = 128
+
 
 @dataclass(frozen=True)
 class ModelSpec:
@@ -165,24 +177,16 @@ def load_probe() -> dict[str, Any]:
     return dict(payload)
 
 
-def probe_polarity(model: Any, tokenizer: Any, probe: dict[str, Any]) -> dict[str, Any]:
+def probe_polarity(score: Any, probe: dict[str, Any]) -> dict[str, Any]:
     """Work out which class index means "positive", and how confidently.
 
-    Scores each probe review under both possible mappings and takes the one that agrees more. A
-    model whose better mapping still disagrees with the probe is not a labelling problem - it is a
-    broken checkpoint - and the caller refuses it.
+    `score` takes one review's text and returns its predicted class index. Scores each probe review
+    under both possible mappings and takes the one that agrees more. A model whose better mapping
+    still disagrees with the probe is not a labelling problem - it is a broken checkpoint - and the
+    caller refuses it.
     """
-    import torch
-
     reviews = probe["reviews"]
-    predictions: list[int] = []
-    with torch.inference_mode():
-        for review in reviews:
-            encoded = tokenizer(
-                review["text"], return_tensors="pt", truncation=True, max_length=512
-            )
-            logits = model(**encoded).logits.reshape(-1)
-            predictions.append(int(torch.argmax(logits)))
+    predictions = [int(score(review["text"])) for review in reviews]
 
     truths = [1 if review["label"] == "positive" else 0 for review in reviews]
     direct = sum(int(p == t) for p, t in zip(predictions, truths, strict=True)) / len(truths)
@@ -202,15 +206,59 @@ def probe_polarity(model: Any, tokenizer: Any, probe: dict[str, Any]) -> dict[st
     }
 
 
+def verify_adabert(directory: Path, probe: dict[str, Any]) -> dict[str, Any]:
+    """Load the bare state dict into the serving class, and measure its label order.
+
+    Deliberately the same class the application serves (`app.serving.adabert`) rather than a copy
+    declared here: one definition of the network, checked once. `strict=True` is what catches a
+    state dict this definition has nowhere to put.
+
+    What `strict=True` does *not* catch is the other FrozenAdaBERT definition in
+    `notebooks/results/`, because the operation the search selected carries no parameters and both
+    definitions therefore produce identical keys. The probe below is the check that actually
+    exercises the arithmetic end to end.
+    """
+    import torch
+    from transformers import AutoTokenizer
+
+    from app.serving.adabert import FrozenAdaBERT
+
+    model = FrozenAdaBERT(vocab_size=30522, hidden_size=256, selected_ops=ADABERT_SELECTED_OPS)
+    state = torch.load(directory / "frozen_adabert.pt", map_location="cpu", weights_only=True)
+    model.load_state_dict(state, strict=True)
+    model.eval()
+
+    tokenizer = AutoTokenizer.from_pretrained(str(directory), local_files_only=True)
+
+    def score(text: str) -> int:
+        encoded = tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=ADABERT_MAX_LENGTH,
+            padding="max_length",
+        )
+        with torch.inference_mode():
+            return int(torch.argmax(model(encoded["input_ids"]).reshape(-1)))
+
+    polarity = probe_polarity(score, probe)
+    if polarity["agreement"] < probe["min_agreement"]:
+        raise RuntimeError(
+            f"adabert: neither label mapping agrees with the probe "
+            f"(best {polarity['agreement']:.0%}, need {probe['min_agreement']:.0%}). "
+            "Either the checkpoint is not doing sentiment, or the class definition here is not "
+            "the one that produced it."
+        )
+    return {"params": sum(p.numel() for p in model.parameters()), "n_layers": None, **polarity}
+
+
 def verify_and_probe(spec: ModelSpec, directory: Path, probe: dict[str, Any]) -> dict[str, Any]:
     """Load the snapshot, insist the classifier head arrived, and measure the label order."""
+    import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     if spec.kind == "adabert":
-        # A bare state dict: there is no transformers snapshot to load, and no head to check for.
-        # The registry validates it with strict=True at serve time, which is where the two
-        # divergent FrozenAdaBERT definitions get decided between.
-        return {"skipped": "state dict, verified at load time with strict=True"}
+        return verify_adabert(directory, probe)
 
     model, info = AutoModelForSequenceClassification.from_pretrained(
         str(directory), local_files_only=True, output_loading_info=True
@@ -226,7 +274,13 @@ def verify_and_probe(spec: ModelSpec, directory: Path, probe: dict[str, Any]) ->
     model.eval()
 
     tokenizer = AutoTokenizer.from_pretrained(str(directory), local_files_only=True)
-    polarity = probe_polarity(model, tokenizer, probe)
+
+    def score(text: str) -> int:
+        encoded = tokenizer(text, return_tensors="pt", truncation=True, max_length=BERT_MAX_LENGTH)
+        with torch.inference_mode():
+            return int(torch.argmax(model(**encoded).logits.reshape(-1)))
+
+    polarity = probe_polarity(score, probe)
     if polarity["agreement"] < probe["min_agreement"]:
         raise RuntimeError(
             f"{spec.name}: neither label mapping agrees with the probe "
@@ -266,25 +320,34 @@ def write_manifest(
             "vocab_size": 30522,
             "hidden_size": 256,
             "num_labels": 2,
+            "max_length": ADABERT_MAX_LENGTH,
+            "selected_layers": ADABERT_SELECTED_LAYERS,
+            "selected_ops": ADABERT_SELECTED_OPS,
+            "source": (
+                "notebooks/dnas/Differentiable_NAS.ipynb, the cell that builds FrozenAdaBERT and "
+                "saves frozen_adabert.pt. The checkpoint carries no config, and the definition in "
+                "notebooks/results/ omits the cells; both load strictly, because the selected "
+                "operation is parameter-free, so provenance decides and the probe checks."
+            ),
         }
-        # Not measurable without loading the class, and the class is what the registry validates.
-        manifest["label_order"] = {"positive_index": 1, "source": "assumed, verified at load"}
+        manifest["model_info"]["params"] = verification["params"]
     else:
         manifest["arch"] = {
             "name": "bert_sequence_classification",
             "num_labels": 2,
-            "max_length": 512,
+            "max_length": BERT_MAX_LENGTH,
             "n_layers": verification["n_layers"],
         }
         manifest["model_info"]["params"] = verification["params"]
         manifest["model_info"]["n_layers"] = verification["n_layers"]
-        manifest["label_order"] = {
-            "positive_index": verification["positive_index"],
-            "id2label": verification["id2label"],
-            "probe_agreement": verification["agreement"],
-            "probe_reviews": verification["n_reviews"],
-            "source": "measured by scripts/fetch_models.py against data/label_probe.json",
-        }
+
+    manifest["label_order"] = {
+        "positive_index": verification["positive_index"],
+        "id2label": verification["id2label"],
+        "probe_agreement": verification["agreement"],
+        "probe_reviews": verification["n_reviews"],
+        "source": "measured by scripts/fetch_models.py against data/label_probe.json",
+    }
 
     path = MODELS_DIR / f"{spec.name}.meta.json"
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -329,14 +392,13 @@ def main() -> int:
 
         size_mb = sum(f.stat().st_size for f in directory.rglob("*") if f.is_file()) / 1_048_576
         print(f"  revision {sha[:12]}  ({size_mb:.0f} MB)")
-        if "positive_index" in verification:
-            print(
-                f"  label order: class {verification['positive_index']} is positive "
-                f"({verification['agreement']:.0%} agreement on {verification['n_reviews']} probes)"
-            )
-            print(f"  {verification['n_layers']} layers, {verification['params']:,} parameters")
-        else:
-            print(f"  {verification['skipped']}")
+        print(
+            f"  label order: class {verification['positive_index']} is positive "
+            f"({verification['agreement']:.0%} agreement on {verification['n_reviews']} probes)"
+        )
+        layers = verification["n_layers"]
+        shape = f"{layers} layers" if layers is not None else "no encoder layers"
+        print(f"  {shape}, {verification['params']:,} parameters")
 
     if failures:
         print(f"\n{len(failures)} of {len(selected)} failed:", file=sys.stderr)
