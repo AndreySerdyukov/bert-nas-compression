@@ -1,6 +1,12 @@
 import type { Page } from "@playwright/test";
 
-import { ABLATION_FRAMES, ABLATION_RESULT, ABLATION_STARTED } from "./fixtures";
+import {
+  ABLATION_FRAMES,
+  ABLATION_RESULT,
+  ABLATION_STARTED,
+  BENCHMARK,
+  CONTROLS,
+} from "./fixtures";
 import { expect, test } from "./harness";
 
 /**
@@ -101,7 +107,13 @@ test("a mask nobody trained says so instead of comparing against something else"
   await page.getByRole("button", { name: "Score 5 layers" }).click();
 
   await expect(page.getByText(/Nobody has trained this mask/)).toBeVisible();
-  await expect(page.getByText(/4 096 of them/)).toBeVisible();
+  // Counted from the two documents rather than written into the sentence, so the expectation is
+  // derived here the same way: every control that carries layers, plus every searched model that
+  // has an encoder depth. Adding a control has to move this number, which a literal would not.
+  const trained =
+    CONTROLS.controls.filter((control) => control.layers !== null).length +
+    BENCHMARK.models.filter((model) => model.method !== null && model.n_layers !== null).length;
+  await expect(page.getByText(`4,096 of them and ${trained} trained ones`)).toBeVisible();
 });
 
 test("the trained column follows the mask that was scored, not the one now on screen", async ({

@@ -7,6 +7,7 @@ import MetricBlock from "../components/MetricBlock";
 import { formatAccuracyPrecise, formatParams } from "../components/charts/scale";
 import { PRESETS, trainedTwin } from "../lib/ablation";
 import { N_LAYERS, layersFromMask, maskFromLayers, paramsFor } from "../lib/arch";
+import { FULL_SAMPLE, JOB_SIZES } from "../lib/jobSizes";
 import { useArchitectures, useBenchmark, useControls } from "../lib/useContent";
 import { useJob } from "../lib/useJob";
 
@@ -35,6 +36,10 @@ function interval(run: ScoredRun): string {
 
 export default function Explorer() {
   const [mask, setMask] = useState<number[]>(DEFAULT_MASK);
+  // Chosen rather than defaulted. Without a limit the job takes the server's cap, and an ablation
+  // scores every row twice - once amputated, once at full depth - so the quiet default was the
+  // longest piece of work in the application behind a button that mentioned no duration at all.
+  const [rows, setRows] = useState<number>(FULL_SAMPLE);
   const ablation = useJob();
   const controls = useControls();
   const architectures = useArchitectures();
@@ -57,6 +62,15 @@ export default function Explorer() {
     twin?.source === "searched"
       ? (benchmark.data?.models.find((model) => model.label === twin.label)?.accuracy ?? Number.NaN)
       : (twin?.accuracy ?? Number.NaN);
+
+  // Counted from the two documents rather than typed into the sentence below. It was "twenty-two
+  // trained models" in prose, on a page whose every other figure is read from data - so adding a
+  // control would have left the number quietly wrong.
+  const trainedMasks =
+    (controls.data?.controls.filter((control) => control.layers !== null).length ?? 0) +
+    (benchmark.data?.models.filter((model) => model.method !== null && model.n_layers !== null)
+      .length ?? 0);
+  const allMasks = 2 ** N_LAYERS;
 
   function toggle(index: number) {
     setMask(mask.map((bit, position) => (position === index ? (bit === 1 ? 0 : 1) : bit)));
@@ -114,16 +128,42 @@ export default function Explorer() {
       </section>
 
       <section className="mt-6">
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={kept === 0 || ablation.busy}
-          onClick={() => void ablation.start({ kind: "ablation", layers })}
-        >
-          {ablation.busy ? "Scoring…" : `Score ${kept} layers`}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={kept === 0 || ablation.busy}
+            onClick={() => void ablation.start({ kind: "ablation", layers, limit: rows })}
+          >
+            {ablation.busy ? "Scoring…" : `Score ${kept} layers`}
+          </button>
+          <label className="flex items-center gap-2 text-[13px] text-slate">
+            over
+            <select
+              aria-label="How many reviews to score"
+              className="field w-auto py-1 text-[13px]"
+              value={rows}
+              disabled={ablation.busy}
+              onChange={(event) => setRows(Number(event.target.value))}
+            >
+              {JOB_SIZES.map((size) => (
+                <option key={size.rows} value={size.rows}>
+                  {size.label}
+                </option>
+              ))}
+            </select>
+            reviews
+          </label>
+        </div>
+        {/* Said before the wait rather than discovered during it: each review goes through the
+            model twice here, which is why this is slower than it looks for the same row count. */}
+        <p className="mt-2 text-[13px] text-slate">
+          Every review is scored twice - once by the mask, once by the full model on the same rows -
+          so {rows.toLocaleString("en-US")} reviews is {(rows * 2).toLocaleString("en-US")} forward
+          passes. The full sample takes several minutes on a laptop.
+        </p>
         {kept === 0 && (
-          <span className="ml-3 text-[13px] text-slate">
+          <span className="mt-2 block text-[13px] text-slate">
             Keep at least one layer: an encoder with none is not a model.
           </span>
         )}
@@ -160,7 +200,7 @@ export default function Explorer() {
                 caption={
                   twin
                     ? `${twin.label}, trained on this mask and scored on the full ${twin.rows.toLocaleString("en-US")}-row split - a different set of reviews from the two columns beside it.`
-                    : "Nobody has trained this mask. There are 4 096 of them and twenty-two trained models, so most masks have no counterpart."
+                    : `Nobody has trained this mask. There are ${allMasks.toLocaleString("en-US")} of them and ${trainedMasks} trained ones, so most masks have no counterpart.`
                 }
               />
               <MetricBlock

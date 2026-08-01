@@ -5,16 +5,9 @@ import JobProgress from "../components/JobProgress";
 import ModelCard from "../components/ModelCard";
 import ScanReport from "../components/ScanReport";
 import { describeRuntime } from "../lib/format";
+import { FULL_SAMPLE, JOB_SIZES } from "../lib/jobSizes";
 import { useJob } from "../lib/useJob";
 import { useExamples, useModels } from "../lib/useServing";
-
-/** Rows of the evaluation sample the scan can cover. The full sample is the number that counts. */
-const FULL_SAMPLE = 2000;
-const SCAN_SIZES = [
-  { rows: FULL_SAMPLE, label: "Scan all 2,000" },
-  { rows: 500, label: "First 500" },
-  { rows: 200, label: "First 200" },
-] as const;
 
 /**
  * One review, every model at once.
@@ -251,7 +244,7 @@ export default function Playground() {
               </p>
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                {SCAN_SIZES.map((size) => (
+                {JOB_SIZES.map((size) => (
                   <button
                     key={size.rows}
                     type="button"
@@ -259,7 +252,7 @@ export default function Playground() {
                     onClick={() => void scan.start({ limit: size.rows })}
                     className={size.rows === FULL_SAMPLE ? "btn-primary" : "btn-secondary"}
                   >
-                    {size.label}
+                    {size.rows === FULL_SAMPLE ? `Scan ${size.label.toLowerCase()}` : size.label}
                   </button>
                 ))}
                 {/* Stated up front rather than discovered halfway through: the full sample takes
