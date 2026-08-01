@@ -213,13 +213,21 @@ def test_compare_scores_every_model_and_marks_the_disagreements(serving: object)
 @needs_weights
 @pytest.mark.needs_weights
 def test_throughput_is_reported_separately_from_latency(serving: object) -> None:
-    """Two quantities, two names. Dividing a batch time by 16 is not a latency."""
+    """Two quantities, two names. Dividing a batch time by 16 is not a latency.
+
+    Measured on the baseline rather than on AdaBERT, and that is the fix for a flake rather than a
+    preference. AdaBERT answers in about 0.7 ms, where the per-example batch time and the
+    single-example median sit within a few percent of each other and swap places run to run - the
+    assertion below then failed about one time in three for reasons that had nothing to do with
+    the code under test. On the twelve-layer baseline the batch is several times cheaper per
+    example, which is the effect this test means to pin.
+    """
     with TestClient(create_app()) as client:
         body = client.post(
             "/api/compare",
             json={
                 "text": REVIEW,
-                "models": ["adabert"],
+                "models": ["bert-imdb"],
                 "measure_latency": True,
                 "measure_throughput": True,
             },
