@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import Benchmark from "./pages/Benchmark";
 import Chapter from "./pages/Chapter";
 import Methodology from "./pages/Methodology";
+import Overview from "./pages/Overview";
 import Playground from "./pages/Playground";
 import { useTheme } from "./theme";
 
@@ -64,15 +65,7 @@ export default function App() {
       <TopNav />
       <main>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <Stub
-                title="BERT NAS Compression"
-                note="What Neural Architecture Search actually buys when compressing a BERT sentiment classifier - measured, with the controls it needs."
-              />
-            }
-          />
+          <Route path="/" element={<Overview />} />
           <Route path="/playground" element={<Playground />} />
           <Route
             path="/explorer"
