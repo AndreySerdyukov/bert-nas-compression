@@ -1,0 +1,708 @@
+{
+  "schema": 1,
+  "generated_by": "training/train_reference.py",
+  "note": "Controls, so that the searched architectures have something to be compared against other than each other. Trained under the protocol the shipped checkpoints were, read out of the eval notebooks and not tuned here.",
+  "protocol": {
+    "epochs": 1,
+    "train_rows": 28000,
+    "test_rows": 15000,
+    "test_index_sha256": "33d7fee1070469ac628d568dfa95fc960d8d76e8a548acdb553fbb15ce1796c9",
+    "max_length": 512,
+    "batch_size": 16,
+    "learning_rate": 3e-05,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "base_model": "bert-base-uncased",
+    "device": "mps",
+    "cooldown_seconds": 120,
+    "torch": "2.13.0",
+    "source": "notebooks/*/\\*_Eval.ipynb, which agree on every value. AlphaNAS received two epochs rather than one; that is a footnote on its row, not a licence to give the controls two."
+  },
+  "planned": [
+    "tfidf",
+    "uniform-4",
+    "uniform-5",
+    "first-4",
+    "first-5",
+    "last-4",
+    "last-5",
+    "distilbert",
+    "random-4-seed0",
+    "random-4-seed1",
+    "random-4-seed2",
+    "random-4-seed3",
+    "random-4-seed4",
+    "random-5-seed0",
+    "random-5-seed1",
+    "random-5-seed2",
+    "random-5-seed3",
+    "random-5-seed4"
+  ],
+  "not_run": [],
+  "weights_saved": false,
+  "weights_note": "The controls answer a question and the answer is a number; eighteen fine-tuned BERTs are seven gigabytes. Re-run this script to reproduce one.",
+  "controls": [
+    {
+      "key": "tfidf",
+      "label": "TF-IDF + logistic regression",
+      "question": "How much of this task needs a transformer at all?",
+      "priority": 1,
+      "kind": "tfidf",
+      "layers": null,
+      "n_layers": null,
+      "seed": null,
+      "train": {
+        "seconds": 9.78,
+        "steps": null,
+        "features": 200000,
+        "note": "not a transformer, so none of the transformer protocol applies to it"
+      },
+      "correct": 13712,
+      "accuracy": 0.914133,
+      "macro_precision": 0.914228,
+      "macro_recall": 0.91405,
+      "macro_f1": 0.914106,
+      "positive_precision": 0.910275,
+      "positive_recall": 0.92107,
+      "positive_f1": 0.915641,
+      "confusion": {
+        "true_negative": 6722,
+        "false_positive": 689,
+        "false_negative": 599,
+        "true_positive": 6990
+      }
+    },
+    {
+      "key": "uniform-4",
+      "label": "Evenly spaced, 4 layers",
+      "question": "Did searching beat keeping every third layer?",
+      "priority": 2,
+      "kind": "mask",
+      "layers": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "n_layers": 4,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1385.55,
+        "seconds_per_step": 0.7917415219520085,
+        "train_loss": 0.3467,
+        "params": 52780802
+      },
+      "correct": 13438,
+      "accuracy": 0.895867,
+      "macro_precision": 0.896152,
+      "macro_recall": 0.895713,
+      "macro_f1": 0.895809,
+      "positive_precision": 0.888088,
+      "positive_recall": 0.908684,
+      "positive_f1": 0.898268,
+      "confusion": {
+        "true_negative": 6542,
+        "false_positive": 869,
+        "false_negative": 693,
+        "true_positive": 6896
+      }
+    },
+    {
+      "key": "uniform-5",
+      "label": "Evenly spaced, 5 layers",
+      "question": "Did searching beat keeping every third layer?",
+      "priority": 2,
+      "kind": "mask",
+      "layers": [
+        0,
+        3,
+        6,
+        8,
+        11
+      ],
+      "n_layers": 5,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1691.23,
+        "seconds_per_step": 0.9664172516668748,
+        "train_loss": 0.3266,
+        "params": 59868674
+      },
+      "correct": 13620,
+      "accuracy": 0.908,
+      "macro_precision": 0.908583,
+      "macro_recall": 0.907786,
+      "macro_f1": 0.907924,
+      "positive_precision": 0.895831,
+      "positive_recall": 0.925814,
+      "positive_f1": 0.910575,
+      "confusion": {
+        "true_negative": 6594,
+        "false_positive": 817,
+        "false_negative": 563,
+        "true_positive": 7026
+      }
+    },
+    {
+      "key": "first-4",
+      "label": "First 4 layers",
+      "question": "Does it matter which end of the stack the layers come from?",
+      "priority": 3,
+      "kind": "mask",
+      "layers": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "n_layers": 4,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1370.68,
+        "seconds_per_step": 0.7832475056428063,
+        "train_loss": 0.3372,
+        "params": 52780802
+      },
+      "correct": 13593,
+      "accuracy": 0.9062,
+      "macro_precision": 0.906879,
+      "macro_recall": 0.905968,
+      "macro_f1": 0.906114,
+      "positive_precision": 0.892957,
+      "positive_recall": 0.92555,
+      "positive_f1": 0.908962,
+      "confusion": {
+        "true_negative": 6569,
+        "false_positive": 842,
+        "false_negative": 565,
+        "true_positive": 7024
+      }
+    },
+    {
+      "key": "first-5",
+      "label": "First 5 layers",
+      "question": "Does it matter which end of the stack the layers come from?",
+      "priority": 3,
+      "kind": "mask",
+      "layers": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_layers": 5,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1687.35,
+        "seconds_per_step": 0.9642022307142615,
+        "train_loss": 0.3207,
+        "params": 59868674
+      },
+      "correct": 13671,
+      "accuracy": 0.9114,
+      "macro_precision": 0.911514,
+      "macro_recall": 0.911308,
+      "macro_f1": 0.911369,
+      "positive_precision": 0.907022,
+      "positive_recall": 0.919093,
+      "positive_f1": 0.913018,
+      "confusion": {
+        "true_negative": 6696,
+        "false_positive": 715,
+        "false_negative": 614,
+        "true_positive": 6975
+      }
+    },
+    {
+      "key": "last-4",
+      "label": "Last 4 layers",
+      "question": "Does it matter which end of the stack the layers come from?",
+      "priority": 3,
+      "kind": "mask",
+      "layers": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "n_layers": 4,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1373.15,
+        "seconds_per_step": 0.7846596966662577,
+        "train_loss": 0.3716,
+        "params": 52780802
+      },
+      "correct": 13198,
+      "accuracy": 0.879867,
+      "macro_precision": 0.880387,
+      "macro_recall": 0.880098,
+      "macro_f1": 0.879857,
+      "positive_precision": 0.897732,
+      "positive_recall": 0.860588,
+      "positive_f1": 0.878767,
+      "confusion": {
+        "true_negative": 6667,
+        "false_positive": 744,
+        "false_negative": 1058,
+        "true_positive": 6531
+      }
+    },
+    {
+      "key": "last-5",
+      "label": "Last 5 layers",
+      "question": "Does it matter which end of the stack the layers come from?",
+      "priority": 3,
+      "kind": "mask",
+      "layers": [
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "n_layers": 5,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1686.46,
+        "seconds_per_step": 0.9636939833805497,
+        "train_loss": 0.3622,
+        "params": 59868674
+      },
+      "correct": 13276,
+      "accuracy": 0.885067,
+      "macro_precision": 0.885254,
+      "macro_recall": 0.884937,
+      "macro_f1": 0.885014,
+      "positive_precision": 0.879219,
+      "positive_recall": 0.895902,
+      "positive_f1": 0.887482,
+      "confusion": {
+        "true_negative": 6477,
+        "false_positive": 934,
+        "false_negative": 790,
+        "true_positive": 6799
+      }
+    },
+    {
+      "key": "distilbert",
+      "label": "DistilBERT",
+      "question": "How does distillation compare with search at a similar size?",
+      "priority": 4,
+      "kind": "distilbert",
+      "layers": null,
+      "n_layers": null,
+      "seed": null,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1994.81,
+        "seconds_per_step": 1.1398899388331254,
+        "train_loss": 0.2608,
+        "params": 66955010
+      },
+      "correct": 13943,
+      "accuracy": 0.929533,
+      "macro_precision": 0.929539,
+      "macro_recall": 0.929507,
+      "macro_f1": 0.929521,
+      "positive_precision": 0.929172,
+      "positive_recall": 0.931743,
+      "positive_f1": 0.930456,
+      "confusion": {
+        "true_negative": 6872,
+        "false_positive": 539,
+        "false_negative": 518,
+        "true_positive": 7071
+      }
+    },
+    {
+      "key": "random-4-seed0",
+      "label": "Random 4 layers, seed 0",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 5,
+      "kind": "mask",
+      "layers": [
+        0,
+        4,
+        6,
+        11
+      ],
+      "n_layers": 4,
+      "seed": 0,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1377.95,
+        "seconds_per_step": 0.7874005984999904,
+        "train_loss": 0.3479,
+        "params": 52780802
+      },
+      "correct": 13410,
+      "accuracy": 0.894,
+      "macro_precision": 0.894331,
+      "macro_recall": 0.893833,
+      "macro_f1": 0.893935,
+      "positive_precision": 0.88549,
+      "positive_recall": 0.907893,
+      "positive_f1": 0.896552,
+      "confusion": {
+        "true_negative": 6520,
+        "false_positive": 891,
+        "false_negative": 699,
+        "true_positive": 6890
+      }
+    },
+    {
+      "key": "random-4-seed1",
+      "label": "Random 4 layers, seed 1",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 5,
+      "kind": "mask",
+      "layers": [
+        1,
+        2,
+        4,
+        9
+      ],
+      "n_layers": 4,
+      "seed": 1,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1379.69,
+        "seconds_per_step": 0.7883934398091265,
+        "train_loss": 0.3284,
+        "params": 52780802
+      },
+      "correct": 13598,
+      "accuracy": 0.906533,
+      "macro_precision": 0.906779,
+      "macro_recall": 0.906395,
+      "macro_f1": 0.906486,
+      "positive_precision": 0.899316,
+      "positive_recall": 0.918039,
+      "positive_f1": 0.908581,
+      "confusion": {
+        "true_negative": 6631,
+        "false_positive": 780,
+        "false_negative": 622,
+        "true_positive": 6967
+      }
+    },
+    {
+      "key": "random-4-seed2",
+      "label": "Random 4 layers, seed 2",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 5,
+      "kind": "mask",
+      "layers": [
+        0,
+        1,
+        5,
+        10
+      ],
+      "n_layers": 4,
+      "seed": 2,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1379.16,
+        "seconds_per_step": 0.7880885969285987,
+        "train_loss": 0.3403,
+        "params": 52780802
+      },
+      "correct": 13558,
+      "accuracy": 0.903867,
+      "macro_precision": 0.90445,
+      "macro_recall": 0.903651,
+      "macro_f1": 0.903786,
+      "positive_precision": 0.891778,
+      "positive_recall": 0.921861,
+      "positive_f1": 0.90657,
+      "confusion": {
+        "true_negative": 6562,
+        "false_positive": 849,
+        "false_negative": 593,
+        "true_positive": 6996
+      }
+    },
+    {
+      "key": "random-4-seed3",
+      "label": "Random 4 layers, seed 3",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 5,
+      "kind": "mask",
+      "layers": [
+        2,
+        3,
+        8,
+        9
+      ],
+      "n_layers": 4,
+      "seed": 3,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1380.31,
+        "seconds_per_step": 0.7887488032377192,
+        "train_loss": 0.3405,
+        "params": 52780802
+      },
+      "correct": 13504,
+      "accuracy": 0.900267,
+      "macro_precision": 0.900563,
+      "macro_recall": 0.900112,
+      "macro_f1": 0.90021,
+      "positive_precision": 0.892236,
+      "positive_recall": 0.913164,
+      "positive_f1": 0.902579,
+      "confusion": {
+        "true_negative": 6574,
+        "false_positive": 837,
+        "false_negative": 659,
+        "true_positive": 6930
+      }
+    },
+    {
+      "key": "random-4-seed4",
+      "label": "Random 4 layers, seed 4",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 5,
+      "kind": "mask",
+      "layers": [
+        1,
+        3,
+        4,
+        6
+      ],
+      "n_layers": 4,
+      "seed": 4,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1380.14,
+        "seconds_per_step": 0.7886499655953875,
+        "train_loss": 0.3316,
+        "params": 52780802
+      },
+      "correct": 13586,
+      "accuracy": 0.905733,
+      "macro_precision": 0.906108,
+      "macro_recall": 0.905562,
+      "macro_f1": 0.905673,
+      "positive_precision": 0.896392,
+      "positive_recall": 0.920016,
+      "positive_f1": 0.90805,
+      "confusion": {
+        "true_negative": 6604,
+        "false_positive": 807,
+        "false_negative": 607,
+        "true_positive": 6982
+      }
+    },
+    {
+      "key": "random-5-seed0",
+      "label": "Random 5 layers, seed 0",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 6,
+      "kind": "mask",
+      "layers": [
+        0,
+        4,
+        6,
+        7,
+        11
+      ],
+      "n_layers": 5,
+      "seed": 0,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1695.76,
+        "seconds_per_step": 0.9690073108331833,
+        "train_loss": 0.3326,
+        "params": 59868674
+      },
+      "correct": 13535,
+      "accuracy": 0.902333,
+      "macro_precision": 0.902371,
+      "macro_recall": 0.902418,
+      "macro_f1": 0.902332,
+      "positive_precision": 0.910236,
+      "positive_recall": 0.895243,
+      "positive_f1": 0.902677,
+      "confusion": {
+        "true_negative": 6741,
+        "false_positive": 670,
+        "false_negative": 795,
+        "true_positive": 6794
+      }
+    },
+    {
+      "key": "random-5-seed1",
+      "label": "Random 5 layers, seed 1",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 6,
+      "kind": "mask",
+      "layers": [
+        1,
+        2,
+        4,
+        9,
+        10
+      ],
+      "n_layers": 5,
+      "seed": 1,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1699.83,
+        "seconds_per_step": 0.9713289155474465,
+        "train_loss": 0.3354,
+        "params": 59868674
+      },
+      "correct": 13591,
+      "accuracy": 0.906067,
+      "macro_precision": 0.90615,
+      "macro_recall": 0.906176,
+      "macro_f1": 0.906066,
+      "positive_precision": 0.915658,
+      "positive_recall": 0.896956,
+      "positive_f1": 0.90621,
+      "confusion": {
+        "true_negative": 6784,
+        "false_positive": 627,
+        "false_negative": 782,
+        "true_positive": 6807
+      }
+    },
+    {
+      "key": "random-5-seed2",
+      "label": "Random 5 layers, seed 2",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 6,
+      "kind": "mask",
+      "layers": [
+        0,
+        1,
+        2,
+        5,
+        10
+      ],
+      "n_layers": 5,
+      "seed": 2,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1713.95,
+        "seconds_per_step": 0.9793975079045631,
+        "train_loss": 0.328,
+        "params": 59868674
+      },
+      "correct": 13649,
+      "accuracy": 0.909933,
+      "macro_precision": 0.910233,
+      "macro_recall": 0.909782,
+      "macro_f1": 0.909883,
+      "positive_precision": 0.901726,
+      "positive_recall": 0.922519,
+      "positive_f1": 0.912004,
+      "confusion": {
+        "true_negative": 6648,
+        "false_positive": 763,
+        "false_negative": 588,
+        "true_positive": 7001
+      }
+    },
+    {
+      "key": "random-5-seed3",
+      "label": "Random 5 layers, seed 3",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 6,
+      "kind": "mask",
+      "layers": [
+        2,
+        3,
+        5,
+        8,
+        9
+      ],
+      "n_layers": 5,
+      "seed": 3,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1705.32,
+        "seconds_per_step": 0.9744709445234787,
+        "train_loss": 0.3442,
+        "params": 59868674
+      },
+      "correct": 13600,
+      "accuracy": 0.906667,
+      "macro_precision": 0.906645,
+      "macro_recall": 0.906687,
+      "macro_f1": 0.906659,
+      "positive_precision": 0.91003,
+      "positive_recall": 0.904994,
+      "positive_f1": 0.907505,
+      "confusion": {
+        "true_negative": 6732,
+        "false_positive": 679,
+        "false_negative": 721,
+        "true_positive": 6868
+      }
+    },
+    {
+      "key": "random-5-seed4",
+      "label": "Random 5 layers, seed 4",
+      "question": "Is the found mask in the tail of the distribution, or the middle?",
+      "priority": 6,
+      "kind": "mask",
+      "layers": [
+        1,
+        3,
+        4,
+        6,
+        7
+      ],
+      "n_layers": 5,
+      "seed": 4,
+      "train": {
+        "steps": 1750,
+        "steps_per_epoch": 1750,
+        "seconds": 1696.21,
+        "seconds_per_step": 0.9692622437617475,
+        "train_loss": 0.3274,
+        "params": 59868674
+      },
+      "correct": 13631,
+      "accuracy": 0.908733,
+      "macro_precision": 0.908713,
+      "macro_recall": 0.908737,
+      "macro_f1": 0.908723,
+      "positive_precision": 0.910941,
+      "positive_recall": 0.90842,
+      "positive_f1": 0.909679,
+      "confusion": {
+        "true_negative": 6737,
+        "false_positive": 674,
+        "false_negative": 695,
+        "true_positive": 6894
+      }
+    }
+  ]
+}
