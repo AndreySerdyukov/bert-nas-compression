@@ -166,14 +166,21 @@ def test_compare_marks_disagreement_against_the_baseline_only() -> None:
     results = {entry.name: entry for entry in response.results}
 
     assert response.baseline == "bert-imdb"
+    assert response.baseline_scored is True
     assert results["bert-imdb"].agrees_with_baseline is None
     assert results["alphanas"].agrees_with_baseline is True
     assert results["bananas"].agrees_with_baseline is False
     assert response.disagree == ["bananas"]
 
 
-def test_compare_without_the_baseline_loaded_claims_no_disagreement() -> None:
-    """Two compressed models differing from each other says nothing about either being wrong."""
+def test_compare_without_the_baseline_says_it_made_no_comparison() -> None:
+    """Two compressed models differing from each other says nothing about either being wrong.
+
+    So `disagree` stays empty - but empty means "not compared" here and "all agreed" in the test
+    above, and those are opposite readings of the same field. `baseline_scored` is what separates
+    them, and it exists because without it the playground printed "every model agrees with the
+    baseline" for a run in which the baseline never scored anything.
+    """
     service = _service(
         {
             "alphanas": StubPredictor(_info("alphanas"), verdict="negative"),
@@ -181,6 +188,7 @@ def test_compare_without_the_baseline_loaded_claims_no_disagreement() -> None:
         }
     )
     response = service.compare(REVIEW, measure_latency=False)
+    assert response.baseline_scored is False
     assert response.disagree == []
     assert all(entry.agrees_with_baseline is None for entry in response.results)
 

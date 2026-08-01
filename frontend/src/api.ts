@@ -388,6 +388,12 @@ export interface ModelPrediction {
 
 export interface CompareResponse {
   baseline: string;
+  /**
+   * Whether the baseline was among the models scored. False on a clone that fetched only some
+   * checkpoints, or when the polarity probe dropped the baseline. `disagree` is then empty
+   * because nothing was compared - which reads as "everything agreed" unless this says otherwise.
+   */
+  baseline_scored: boolean;
   results: ModelPrediction[];
   disagree: string[];
   runtime: RuntimeInfo;

@@ -95,6 +95,11 @@ class CompareResponse(BaseModel):
     """Every model's verdict on the same review, and where they part company."""
 
     baseline: str
+    # Whether the baseline was among the models scored. False whenever it is not being served -
+    # a clean clone that fetched one checkpoint, or a baseline the polarity probe dropped - and
+    # then `disagree` is empty because nothing was compared, not because everything agreed. Those
+    # two are indistinguishable without this field, and the page said the second.
+    baseline_scored: bool = True
     results: list[ModelPrediction]
     # Names of the models whose verdict differs from the baseline's. This is the empirical face of
     # the headline number: a 2.5 pp accuracy gap is fifty reviews out of two thousand.

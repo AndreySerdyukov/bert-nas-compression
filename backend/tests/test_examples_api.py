@@ -113,7 +113,10 @@ def test_the_comparison_shape_is_pinned(serving: object) -> None:
         ).json()
 
     assert set(catalog["models"][0]) == MODEL_KEYS
-    assert set(body) == {"baseline", "results", "disagree", "runtime"}
+    # `baseline_scored` is part of the shape rather than an optional extra: without it an empty
+    # `disagree` means either "they all agreed" or "the baseline was not among them", and a client
+    # cannot tell which.
+    assert set(body) == {"baseline", "baseline_scored", "results", "disagree", "runtime"}
     assert set(body["results"][0]) == PREDICTION_KEYS
     assert set(body["results"][0]["latency"]) == {
         "batch_size",

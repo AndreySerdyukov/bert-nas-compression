@@ -1,4 +1,10 @@
-import { COMPARE, EXAMPLES, MODELS, MODELS_WITHOUT_WEIGHTS } from "./fixtures";
+import {
+  COMPARE,
+  COMPARE_WITHOUT_BASELINE,
+  EXAMPLES,
+  MODELS,
+  MODELS_WITHOUT_WEIGHTS,
+} from "./fixtures";
 import { expect, test } from "./harness";
 
 /**
@@ -70,6 +76,35 @@ test("only the model that parts from the baseline is marked", async ({ page }) =
   for (const agreeing of ["alphanas", "bananas", "random-search"]) {
     await expect(page.locator(`[data-model="${agreeing}"]`)).not.toContainText("disagrees");
   }
+});
+
+test("with the baseline unserved the page says so rather than claiming agreement", async ({
+  page,
+  harness,
+}) => {
+  // Reachable on any machine that fetched some of the checkpoints, and on one where the polarity
+  // probe dropped the baseline. `disagree` is then empty because nothing was compared, and the
+  // page used to read that as "every model agrees with the baseline" - a comparison it never made.
+  await page.route("**/api/compare", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(COMPARE_WITHOUT_BASELINE),
+    });
+  });
+
+  await page.goto("/playground");
+  await page.getByLabel("The review").fill("A mixed review.");
+  await page.getByRole("button", { name: /score with every model/i }).click();
+
+  await expect(page.getByRole("heading", { name: /nothing here is a comparison/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /agrees with the baseline/i })).toHaveCount(0);
+  // And no card claims to be the baseline, which is what deciding the badge by a null field did.
+  for (const model of ["alphanas", "bananas", "random-search", "adabert"]) {
+    await expect(page.locator(`[data-model="${model}"]`)).not.toContainText("baseline");
+  }
+
+  expect(harness.consoleErrors).toEqual([]);
 });
 
 test("an example carries its corpus label, and editing it takes the label away", async ({

@@ -195,15 +195,30 @@ export default function Playground() {
           {result !== null && (
             <section className="mt-10">
               <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-hair pb-3">
+                {/* Three headings, not two. With the baseline missing there is no comparison at
+                    all, and `disagree` is empty for that reason rather than because the models
+                    agreed - saying "every model agrees with the baseline" there is the page
+                    reporting a measurement it never took. */}
                 <h2 className="text-[18px] font-semibold tracking-tight">
-                  {result.disagree.length === 0
-                    ? "Every model agrees with the baseline"
-                    : `${result.disagree.length} of ${result.results.length - 1} part from the baseline`}
+                  {!result.baseline_scored
+                    ? "Scored without the baseline, so nothing here is a comparison"
+                    : result.disagree.length === 0
+                      ? "Every model agrees with the baseline"
+                      : `${result.disagree.length} of ${result.results.length - 1} part from the baseline`}
                 </h2>
                 {/* The rule of this project: no timing is rendered without the machine and thread
                     count it came from. */}
                 <p className="tnum text-[12px] text-slate">{describeRuntime(result.runtime)}</p>
               </div>
+
+              {!result.baseline_scored && (
+                <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-slate">
+                  <code className="font-mono">{result.baseline}</code> is the model every other one
+                  here is a compression of, and it is not being served on this machine, so no card
+                  below carries a verdict about agreement. The reason is under &ldquo;Not being
+                  served&rdquo;.
+                </p>
+              )}
 
               {text !== scoredText && (
                 <p className="mt-3 text-[13px] text-slate">
@@ -213,7 +228,12 @@ export default function Playground() {
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {result.results.map((prediction) => (
-                  <ModelCard key={prediction.name} prediction={prediction} truth={truth} />
+                  <ModelCard
+                    key={prediction.name}
+                    prediction={prediction}
+                    truth={truth}
+                    baseline={result.baseline}
+                  />
                 ))}
               </div>
             </section>

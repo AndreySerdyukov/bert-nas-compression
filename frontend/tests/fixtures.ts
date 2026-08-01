@@ -375,6 +375,7 @@ export const EXAMPLES: ExamplesResponse = {
 
 export const COMPARE: CompareResponse = {
   baseline: "bert-imdb",
+  baseline_scored: true,
   runtime: MODELS.runtime,
   disagree: ["adabert"],
   results: [
@@ -485,6 +486,20 @@ export const COMPARE: CompareResponse = {
       agrees_with_baseline: true,
     },
   ],
+};
+
+/**
+ * The same call on a machine where the baseline is not being served - one checkpoint fetched, or
+ * the baseline dropped by the polarity probe. `disagree` is empty because nothing was compared,
+ * and the page has to say that rather than read the empty list as agreement.
+ */
+export const COMPARE_WITHOUT_BASELINE: CompareResponse = {
+  ...COMPARE,
+  baseline_scored: false,
+  disagree: [],
+  results: COMPARE.results
+    .filter((entry) => entry.name !== "bert-imdb")
+    .map((entry) => ({ ...entry, agrees_with_baseline: null })),
 };
 
 /**

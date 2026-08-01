@@ -13,6 +13,8 @@ interface Props {
   prediction: ModelPrediction;
   /** The corpus label, when the scored text is an unedited example. Null once it is edited. */
   truth: number | null;
+  /** Name of the baseline model, so the badge is decided by identity rather than by inference. */
+  baseline: string;
 }
 
 /**
@@ -46,12 +48,15 @@ function Badge({ children, tone }: { children: string; tone: "accent" | "muted" 
   );
 }
 
-export default function ModelCard({ prediction, truth }: Props) {
+export default function ModelCard({ prediction, truth, baseline }: Props) {
   const positive = prediction.verdict === "positive";
   const confidence = positive
     ? prediction.positive_probability
     : 1 - prediction.positive_probability;
   const disagrees = prediction.agrees_with_baseline === false;
+  // By name, not by `agrees_with_baseline === null`. That field is also null on every card when
+  // the baseline is not being served, so the inferred version badged all five as the baseline.
+  const isBaseline = prediction.name === baseline;
   const correct = truth === null ? null : (positive ? 1 : 0) === truth;
   const { latency } = prediction;
 
@@ -63,9 +68,7 @@ export default function ModelCard({ prediction, truth }: Props) {
       <header className="flex items-baseline gap-2">
         <h3 className="text-[15px] font-semibold tracking-tight">{prediction.label}</h3>
         <div className="ml-auto flex items-center gap-1.5">
-          {prediction.agrees_with_baseline === null && !disagrees && (
-            <Badge tone="muted">baseline</Badge>
-          )}
+          {isBaseline && <Badge tone="muted">baseline</Badge>}
           {disagrees && <Badge tone="accent">disagrees</Badge>}
         </div>
       </header>

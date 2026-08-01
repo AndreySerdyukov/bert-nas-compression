@@ -168,8 +168,13 @@ class InferenceService:
                     )
 
         baseline = self._settings.baseline_model
+        # Reported rather than left to be inferred from an empty `disagree`. The baseline is absent
+        # whenever it is not being served, and an empty disagreement list then means "nothing was
+        # compared" rather than "everything agreed" - which is the opposite reading, and the one
+        # the page used to print.
+        baseline_scored = baseline in entries
         disagree: list[str] = []
-        if baseline in entries:
+        if baseline_scored:
             verdict = entries[baseline].verdict
             for name, entry in entries.items():
                 if name == baseline:
@@ -180,6 +185,7 @@ class InferenceService:
 
         return CompareResponse(
             baseline=baseline,
+            baseline_scored=baseline_scored,
             results=[entries[name] for name in loaded],
             disagree=disagree,
             runtime=describe_runtime(self._settings.serve_device),
