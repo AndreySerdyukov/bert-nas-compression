@@ -1,7 +1,9 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 
+import Mark from "./components/Mark";
 import Benchmark from "./pages/Benchmark";
 import Chapter from "./pages/Chapter";
+import Explorer from "./pages/Explorer";
 import Methodology from "./pages/Methodology";
 import Overview from "./pages/Overview";
 import Playground from "./pages/Playground";
@@ -20,7 +22,10 @@ function TopNav() {
   return (
     <header className="sticky top-0 z-20 border-b border-hair bg-canvas/85 backdrop-blur">
       <nav className="mx-auto flex h-14 max-w-content items-center gap-6 px-6">
-        <span className="font-mono text-[13px] font-semibold tracking-tight">bert-nas</span>
+        <span className="flex items-center gap-2 font-mono text-[13px] font-semibold tracking-tight">
+          <Mark />
+          bert-nas
+        </span>
         <ul className="flex flex-1 items-center gap-5">
           {NAV.map((item) => (
             <li key={item.to}>
@@ -67,10 +72,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/playground" element={<Playground />} />
-          <Route
-            path="/explorer"
-            element={<Stub title="Explorer" note="Pick any subset of the twelve encoder layers." />}
-          />
+          <Route path="/explorer" element={<Explorer />} />
           <Route path="/benchmark" element={<Benchmark />} />
           <Route path="/methodology" element={<Methodology />} />
           <Route path="/methodology/:slug" element={<Chapter />} />

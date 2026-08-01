@@ -24,6 +24,7 @@ from app.schemas.predict import (
     ModelPrediction,
     PredictResponse,
 )
+from app.services.ablation import score_ablation
 from app.services.evaluation import scan_disagreements
 from app.services.latency import latency_stats, throughput_stats, time_call, time_round_robin
 from app.services.progress import ProgressReporter
@@ -55,6 +56,10 @@ class PredictionError(Exception):
 
 class ServiceBusyError(Exception):
     """Another scoring request holds the models, and timings taken alongside it would be junk."""
+
+
+class AblationUnsupportedError(Exception):
+    """This model has no encoder layers to remove. AdaBERT is the one that does not."""
 
 
 class InferenceService:
@@ -181,6 +186,47 @@ class InferenceService:
         )
 
     # --- the disagreement scan -------------------------------------------------------------------
+
+    def check_ablation_supported(self) -> None:
+        """Raise if the baseline cannot be amputated, before a job is started over it.
+
+        Cheap, and it moves the failure onto the request that caused it: a job that starts and
+        immediately fails reads to a user as "the machine broke", where a 503 with this text reads
+        as "that model has no layers to remove".
+        """
+        loaded = self._loaded(self._settings.baseline_model)
+        if getattr(loaded.predictor, "module", None) is None:
+            raise AblationUnsupportedError(
+                f"{loaded.info.name} is not a masked BERT, so there are no encoder layers to remove"
+            )
+
+    def ablate(
+        self,
+        rows: Sequence[SampleRow],
+        layers: Sequence[int],
+        progress: ProgressReporter,
+    ) -> dict[str, Any]:
+        """Score a mask of the fine-tuned baseline with no retraining, against its own full depth.
+
+        Held exclusively for the whole run, and for a stronger reason than the scan has: this one
+        mutates the shared module. Any request served alongside it would be answered by an encoder
+        missing two thirds of its layers, and would look like a normal answer.
+        """
+        loaded = self._loaded(self._settings.baseline_model)
+        # getattr rather than an attribute access: `ModelPredictor` is the protocol every wrapper
+        # satisfies, and only the BERT one carries a torch module worth amputating.
+        module = getattr(loaded.predictor, "module", None)
+        if module is None:
+            raise AblationUnsupportedError(
+                f"{loaded.info.name} is not a masked BERT, so there are no encoder layers to remove"
+            )
+
+        with self._exclusive(), unpinned_threads() as threads:
+            progress.write(
+                f"scoring {len(rows)} reviews on {threads} threads. This counts correct verdicts, "
+                "not milliseconds, so the thread pin is off for it."
+            )
+            return score_ablation(loaded, module, rows, layers, progress=progress)
 
     def scan_stages(self, names: Sequence[str]) -> list[str]:
         """The stage list a scan will walk, so a page can draw the whole bar before it starts."""

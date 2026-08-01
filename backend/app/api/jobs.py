@@ -16,7 +16,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.schemas.jobs import JobSnapshot, StartJobRequest
+from app.services.ablation import ablation_stages
+from app.services.architecture import InvalidMaskError, mask_from_layers
 from app.services.inference import (
+    AblationUnsupportedError,
     InferenceService,
     ModelNotFoundError,
     ModelUnavailableError,
@@ -79,6 +82,31 @@ def start_job(payload: StartJobRequest, request: Request) -> JobSnapshot:
             status_code=503,
             detail="the evaluation sample is not present; run training/build_eval_sample.py",
         )
+
+    if payload.kind == "ablation":
+        if not payload.layers:
+            raise HTTPException(
+                status_code=422,
+                detail="an ablation needs `layers`: which encoder layers survive, e.g. [0, 1, 2, 3]",
+            )
+        layers = payload.layers
+        # Validated before the job starts, so a typo comes back as 422 on the request that made it
+        # rather than as a job that runs for a second and then reports itself failed.
+        try:
+            mask_from_layers(layers)
+            service.check_ablation_supported()
+        except InvalidMaskError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except AblationUnsupportedError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+        def ablation_work(progress: JobProgress) -> dict[str, object]:
+            return service.ablate(rows, layers, progress)
+
+        try:
+            return runner.submit("ablation", ablation_work, stages=ablation_stages()).snapshot()
+        except JobBusyError as exc:
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
 
     names = payload.models or [info.name for info in service.catalog().models]
     if not names:

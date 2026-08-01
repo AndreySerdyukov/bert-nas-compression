@@ -1,0 +1,213 @@
+import { useState } from "react";
+
+import { ablationResult, type ScoredRun } from "../api";
+import JobProgress from "../components/JobProgress";
+import LayerMask from "../components/LayerMask";
+import { formatAccuracyPrecise, formatParams } from "../components/charts/scale";
+import { PRESETS, trainedTwin } from "../lib/ablation";
+import { N_LAYERS, layersFromMask, maskFromLayers, paramsFor } from "../lib/arch";
+import { useArchitectures, useBenchmark, useControls } from "../lib/useContent";
+import { useJob } from "../lib/useJob";
+
+/**
+ * Pick any subset of the twelve encoder layers and see what it is worth without retraining.
+ *
+ * The framing is the page, and losing it would make this a toy. NAS does
+ * `finetune(mask(pretrained))`; this does `mask(finetuned)` and stops. Accuracy collapses, and the
+ * collapse is the finding: it is the size of what training each candidate buys, and therefore the
+ * reason a search cannot skip that cost. A visitor who reads the number as "four layers are
+ * hopeless" has been given the opposite of the lesson - four trained layers reach 90%.
+ *
+ * So the warning comes **before** the run rather than as a footnote under the result, and the
+ * result always carries three columns: this amputation, the same mask trained properly where such
+ * a model exists, and the same weights at full depth.
+ */
+
+// The bottom four: the mask that trained is the best of the naive rules, so the page opens on the
+// comparison that has an answer rather than on an empty stack.
+const DEFAULT_MASK = maskFromLayers([0, 1, 2, 3]);
+
+function Interval({ run }: { run: ScoredRun }) {
+  return (
+    <span className="text-[12px] text-slate">
+      {formatAccuracyPrecise(run.wilson_low)} – {formatAccuracyPrecise(run.wilson_high)}
+    </span>
+  );
+}
+
+interface ColumnProps {
+  title: string;
+  subtitle: string;
+  value: string;
+  interval?: React.ReactNode;
+  accent?: boolean;
+}
+
+function Column({ title, subtitle, value, interval, accent }: ColumnProps) {
+  return (
+    <div className="panel p-4">
+      <div className="section-label">{title}</div>
+      <div
+        className={`mt-2 text-[26px] font-semibold tabular-nums tracking-tight ${accent ? "text-accent" : ""}`}
+      >
+        {value}
+      </div>
+      {interval && <div className="mt-0.5">{interval}</div>}
+      <p className="mt-2 text-[13px] leading-snug text-slate">{subtitle}</p>
+    </div>
+  );
+}
+
+export default function Explorer() {
+  const [mask, setMask] = useState<number[]>(DEFAULT_MASK);
+  const ablation = useJob();
+  const controls = useControls();
+  const architectures = useArchitectures();
+  const benchmark = useBenchmark();
+
+  const layers = layersFromMask(mask);
+  const kept = layers.length;
+  const result = ablationResult(ablation.job);
+
+  const twinOf = (of: readonly number[]) =>
+    trainedTwin(of, controls.data?.controls ?? [], architectures.data);
+  // Two lookups on purpose. The label under the strip follows what the reader is currently
+  // clicking; the result column follows the mask that was actually scored. One lookup would let
+  // an edit made after a run relabel a result it does not belong to.
+  const selected = twinOf(layers);
+  const twin = result ? twinOf(result.layers) : null;
+
+  // A searched mask carries its accuracy in the benchmark rather than in the controls file.
+  const twinAccuracy =
+    twin?.source === "searched"
+      ? (benchmark.data?.models.find((model) => model.label === twin.label)?.accuracy ?? Number.NaN)
+      : (twin?.accuracy ?? Number.NaN);
+
+  function toggle(index: number) {
+    setMask(mask.map((bit, position) => (position === index ? (bit === 1 ? 0 : 1) : bit)));
+  }
+
+  return (
+    <main className="mx-auto max-w-[900px] px-6 py-10">
+      <header>
+        <h1 className="text-[32px] font-semibold leading-tight tracking-tight">Explorer</h1>
+        <p className="mt-2 max-w-[68ch] text-[15px] text-slate">
+          Remove encoder layers from the fine-tuned baseline and score what is left. Nothing is
+          retrained, which is exactly what makes the result worth looking at.
+        </p>
+      </header>
+
+      <section className="mt-8">
+        <h2 className="section-label">The mask</h2>
+        <div className="panel mt-3 p-4">
+          <LayerMask mask={mask} onToggle={toggle} size={34} showIndices />
+          <p className="mt-3 text-[14px] text-slate">
+            {kept} of {N_LAYERS} layers kept
+            {kept > 0 && <> · {formatParams(paramsFor(kept))} parameters</>}
+            {selected && <> · this is the mask of {selected.label}</>}
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="btn-secondary text-[13px]"
+                title={preset.why}
+                onClick={() => setMask(maskFromLayers(preset.layers))}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Before the button, not under the result. A reader who runs this and sees 0.62 without
+          having been told why has learned the wrong thing, and no footnote undoes that. */}
+      <section className="mt-6">
+        <div className="panel border-accent/40 p-4">
+          <div className="section-label text-accent">Read this before you run it</div>
+          <p className="mt-2 max-w-[68ch] text-[14px] leading-relaxed">
+            The layers are cut out of a model that was fine-tuned with all twelve, and nothing is
+            trained afterwards. The searched architectures were trained <em>after</em> their layers
+            were chosen, and that training is the expensive half of NAS. So the number below is not
+            what this mask is worth - it is what this mask is worth <strong>without</strong> the
+            half that costs GPU-days, and the gap between the two columns is the measurement.
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={kept === 0 || ablation.busy}
+          onClick={() => void ablation.start({ kind: "ablation", layers })}
+        >
+          {ablation.busy ? "Scoring…" : `Score ${kept} layers`}
+        </button>
+        {kept === 0 && (
+          <span className="ml-3 text-[13px] text-slate">
+            Keep at least one layer: an encoder with none is not a model.
+          </span>
+        )}
+        {ablation.error !== null && (
+          <p className="mt-3 text-[14px] text-accent">{ablation.error}</p>
+        )}
+      </section>
+
+      {ablation.job !== null && (
+        <section className="mt-6">
+          <JobProgress job={ablation.job} />
+        </section>
+      )}
+
+      {result && (
+        <>
+          <section className="mt-8">
+            <h2 className="section-label">
+              {result.n_layers} layers, over {result.rows_scanned.toLocaleString("en-US")} reviews
+            </h2>
+            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+              <Column
+                title="Amputated, not retrained"
+                value={formatAccuracyPrecise(result.ablated.accuracy)}
+                interval={<Interval run={result.ablated} />}
+                subtitle="This mask applied to the fine-tuned baseline, scored as-is."
+                accent
+              />
+              <Column
+                title="The same mask, trained"
+                value={
+                  Number.isNaN(twinAccuracy) ? "no such model" : formatAccuracyPrecise(twinAccuracy)
+                }
+                subtitle={
+                  twin
+                    ? `${twin.label}, trained on this mask and scored on the full ${twin.rows.toLocaleString("en-US")}-row split - a different set of reviews from the two columns beside it.`
+                    : "Nobody has trained this mask. There are 4 096 of them and twenty-two trained models, so most masks have no counterpart."
+                }
+              />
+              <Column
+                title={`${result.baseline_label}, all 12 layers`}
+                value={formatAccuracyPrecise(result.full.accuracy)}
+                interval={<Interval run={result.full} />}
+                subtitle="The same weights at full depth, scored in the same pass on the same reviews."
+              />
+            </div>
+
+            <p className="mt-4 max-w-[68ch] text-[13px] leading-relaxed text-slate">
+              {result.protocol} The amputated model still agrees with the full one on{" "}
+              {formatAccuracyPrecise(result.agreement_with_full)} of these reviews, which is a
+              different question from how often it is right.
+            </p>
+          </section>
+
+          <section className="mt-6">
+            <div className="panel p-4 text-[14px] leading-relaxed text-slate">{result.note}</div>
+          </section>
+        </>
+      )}
+    </main>
+  );
+}

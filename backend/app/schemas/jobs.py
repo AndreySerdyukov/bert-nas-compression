@@ -37,10 +37,13 @@ class JobSnapshot(BaseModel):
 
 
 class StartJobRequest(BaseModel):
-    """Start a job. `kind` picks the work."""
+    """Start a job. `kind` picks the work, and the other fields belong to one kind each."""
 
-    kind: Literal["disagreement", "selftest"]
+    kind: Literal["disagreement", "selftest", "ablation"]
     # Rows of the evaluation sample to scan. None means all of them.
     limit: int | None = None
-    # None means every loaded model.
+    # `disagreement` only. None means every loaded model.
     models: list[str] | None = None
+    # `ablation` only: which encoder layers survive. Indices rather than a 0/1 mask, because that
+    # is what the reader is choosing and what every error message names.
+    layers: list[int] | None = None
