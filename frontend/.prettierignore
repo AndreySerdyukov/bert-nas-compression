@@ -1,5 +1,9 @@
 dist/
 node_modules/
+# Vite's dependency-optimizer cache, written by the first `npm run dev`. Absent in a fresh CI
+# checkout, which is why leaving it out kept CI green while `npm run format:check` failed on
+# every machine that had ever started the dev server.
+.vite/
 test-results/
 playwright-report/
 package-lock.json

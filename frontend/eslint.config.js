@@ -4,7 +4,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "test-results", "playwright-report"] },
+  // `.vite` is Vite's dependency-optimizer cache, written by the first `npm run dev`. It holds
+  // pre-bundled React, which lints as several hundred errors about browser globals. A fresh CI
+  // checkout does not have it, so leaving it out of this list made the gate pass in CI and fail
+  // on every machine that had ever started the dev server.
+  { ignores: ["dist", "node_modules", ".vite", "coverage", "test-results", "playwright-report"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
