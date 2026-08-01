@@ -91,6 +91,31 @@ All five timed the same review, but not on the same amount of work: BERT-base 33
 
 **Memory** is the resident set of a process holding one loaded and warmed model, less the 411 MB that torch and transformers occupy before any model is loaded - a floor every model pays and none of them owns. Each is weighed in its own process: weighed one after another in one process, a freed model's pages go back to Python's allocator rather than to the OS and the next model looks nearly free. The figures run below the fp32 weight size because a safetensors checkpoint is mapped rather than copied, and pages nothing reads never become resident.
 
+### The controls
+
+| Control | Layers | Accuracy | Macro F1 | The question it answers |
+|---|---|---:|---:|---|
+| TF-IDF + logistic regression | - | 0.9141 | 0.9141 | How much of this task needs a transformer at all? |
+| Evenly spaced, 4 layers | 0,4,7,11 | 0.8959 | 0.8958 | Did searching beat keeping every third layer? |
+| Evenly spaced, 5 layers | 0,3,6,8,11 | 0.9080 | 0.9079 | Did searching beat keeping every third layer? |
+| First 4 layers | 0,1,2,3 | 0.9062 | 0.9061 | Does it matter which end of the stack the layers come from? |
+| First 5 layers | 0,1,2,3,4 | 0.9114 | 0.9114 | Does it matter which end of the stack the layers come from? |
+| Last 4 layers | 8,9,10,11 | 0.8799 | 0.8799 | Does it matter which end of the stack the layers come from? |
+| Last 5 layers | 7,8,9,10,11 | 0.8851 | 0.8850 | Does it matter which end of the stack the layers come from? |
+| DistilBERT | - | 0.9295 | 0.9295 | How does distillation compare with search at a similar size? |
+| Random 4 layers, seed 0 | 0,4,6,11 | 0.8940 | 0.8939 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 4 layers, seed 1 | 1,2,4,9 | 0.9065 | 0.9065 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 4 layers, seed 2 | 0,1,5,10 | 0.9039 | 0.9038 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 4 layers, seed 3 | 2,3,8,9 | 0.9003 | 0.9002 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 4 layers, seed 4 | 1,3,4,6 | 0.9057 | 0.9057 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 5 layers, seed 0 | 0,4,6,7,11 | 0.9023 | 0.9023 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 5 layers, seed 1 | 1,2,4,9,10 | 0.9061 | 0.9061 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 5 layers, seed 2 | 0,1,2,5,10 | 0.9099 | 0.9099 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 5 layers, seed 3 | 2,3,5,8,9 | 0.9067 | 0.9067 | Is the found mask in the tail of the distribution, or the middle? |
+| Random 5 layers, seed 4 | 1,3,4,6,7 | 0.9087 | 0.9087 | Is the found mask in the tail of the distribution, or the middle? |
+
+Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: 1 epoch over all 28,000 training rows, 512 tokens, batch 16, AdamW at 3e-05 with weight decay 0.01 and a 10% warm-up. Nothing here was tuned - shortening the training would bias every comparison on this page in this project's favour.
+
 <!-- benchmark:end -->
 
 ## What the original reported
