@@ -16,6 +16,7 @@
     "device": "mps",
     "cooldown_seconds": 120,
     "torch": "2.13.0",
+    "seed_policy": "These eighteen results were run unseeded on 2026-08-01: the classifier head was initialised fresh and the DataLoader shuffled from torch's global RNG, so a row cannot be reproduced exactly from what it says. The `seed` field names the mask's seed, not the training's. training/train_reference.py now pins both; re-running these to match is nine hours of GPU time that would change nothing about what they report.",
     "source": "notebooks/*/\\*_Eval.ipynb, which agree on every value. AlphaNAS received two epochs rather than one; that is a footnote on its row, not a licence to give the controls two."
   },
   "planned": [

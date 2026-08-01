@@ -240,6 +240,8 @@ export interface ControlProtocol {
   cooldown_seconds: number;
   torch: string;
   source: string;
+  /** How the run pinned its randomness. Absent from files written before it was pinned at all. */
+  seed_policy?: string;
 }
 
 /** What one control cost. `steps` is null for TF-IDF, which is not trained in steps at all. */

@@ -22,19 +22,29 @@ informative subset it could:
     5. random masks, k=4, five seeds     is the found mask in the tail or the middle
     6. random masks, k=5, five seeds     the same question at the other size
 
+**Results are merged into the file, never swapped for it.** A run writes its controls into
+`data/controls.json` by key and leaves every other row alone, so re-running one control costs one
+control. That is a correction: the first version wrote the file from the current run alone, which
+made `--only tfidf` - a command this docstring suggests - replace eighteen results with one and
+discard nine hours of GPU time without a word. `--replace` is the explicit way to start over, and
+a run under a different protocol is refused rather than mixed in.
+
 Run (from `backend/`, inside .venv):
     python -m training.train_reference --time-probe            # what a night buys, measured
     python -m training.train_reference --time-probe --budget-hours 8
-    python -m training.train_reference --only tfidf
+    python -m training.train_reference --only tfidf            # merged into whatever is there
     python -m training.train_reference --budget-hours 8        # work down the list, then stop
+    python -m training.train_reference --replace               # start the results file over
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 import time
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -112,9 +122,11 @@ def evenly_spaced(k: int, total: int = N_LAYERS) -> tuple[int, ...]:
 
 
 def random_mask(k: int, seed: int, total: int = N_LAYERS) -> tuple[int, ...]:
-    """`k` layers drawn without replacement. Seeded, so the run is reproducible from its name."""
-    import random
+    """`k` layers drawn without replacement, from a seed that is part of the control's name.
 
+    Its own `Random` instance rather than the module's, so drawing a mask cannot be perturbed by,
+    or perturb, the training seed set in `seed_everything`.
+    """
     return tuple(sorted(random.Random(seed).sample(range(total), k)))
 
 
@@ -186,6 +198,33 @@ def controls() -> list[Control]:
     return sorted(items, key=lambda control: (control.priority, control.key))
 
 
+# --- reproducibility -------------------------------------------------------------------------
+
+
+def run_seed(key: str) -> int:
+    """The training seed for a control, derived from its key so it is a property of the row.
+
+    Two things in a control run are random and neither used to be pinned: the classifier head is
+    initialised fresh by `from_pretrained`, and the DataLoader shuffles. So a row of the results
+    table could not be reproduced from what the table said, even though `random-4-seed0` names a
+    seed - that seed picks the *mask*, not the training. Run-to-run spread on a one-epoch fine-tune
+    is a few tenths of a point, which is the same order as the gaps this project reasons about
+    (0.9027 against 0.9031), so "not reproducible" was not a theoretical objection.
+
+    Derived from the key rather than a single constant so two controls do not share an
+    initialisation, and stable across machines because `hash()` is not.
+    """
+    return zlib.crc32(key.encode("utf-8"))
+
+
+def seed_everything(seed: int) -> None:
+    """Pin the two sources of randomness a control run has."""
+    import torch
+
+    random.seed(seed)
+    torch.manual_seed(seed)
+
+
 # --- building the models -------------------------------------------------------------------------
 
 
@@ -241,7 +280,13 @@ def train_transformer(
         encoded["attention_mask"],
         torch.tensor(frame["label"].tolist(), dtype=torch.long),
     )
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # An explicit generator rather than torch's global one: the shuffle then depends on the seed
+    # this control was given and on nothing that ran before it in the same process. Eighteen
+    # controls share an interpreter, so "whatever the global RNG happens to be at" is eighteen
+    # different states.
+    shuffle = torch.Generator()
+    shuffle.manual_seed(int(torch.initial_seed()) % (2**31))
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, generator=shuffle)
 
     total_steps = len(loader) * EPOCHS
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -447,6 +492,16 @@ def main() -> int:
     parser.add_argument("--only", action="append", help="run just this control (repeatable)")
     parser.add_argument("--list", action="store_true", help="print the controls and exit")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help=(
+            "start the results file over instead of merging into it. Without this a run folds "
+            "its results in by control key, which is what makes --only safe: the default used to "
+            "rewrite the file from the current run alone, so re-running one control discarded "
+            "the other seventeen."
+        ),
+    )
     parser.add_argument("--device", default=None, help="default: mps when available, else cpu")
     args = parser.parse_args()
 
@@ -514,8 +569,18 @@ def main() -> int:
                 f"{control.key}: accuracy {result['accuracy']:.4f} "
                 f"({result['train']['seconds'] / 60:.0f} m training), {remaining} to go"
             )
-            # Written after every run, so a laptop lid keeps whatever finished.
-            _write(args.out, selected, done, split, device, args.cooldown)
+            # Written after every run, so a laptop lid keeps whatever finished. `replace` only on
+            # the first write of the run: after that this run's own results are in the file and
+            # replacing again would drop the ones before the current one.
+            _write(
+                args.out,
+                selected,
+                done,
+                split,
+                device,
+                args.cooldown,
+                replace=args.replace and len(done) == 1,
+            )
 
     print(f"\nwrote {args.out}: {len(done)} of {len(selected)} controls")
     for entry in done:
@@ -526,6 +591,10 @@ def main() -> int:
 def run_control(control: Control, split: Any, device: str, tracker: Any) -> dict[str, Any]:
     """Train one control and score it on the same test split every other model is scored on."""
     from training.benchmark import score_predictions
+
+    # Before anything is built: the classifier head is initialised inside `from_pretrained`, so a
+    # seed set after that point would pin the shuffling and leave the initialisation loose.
+    seed_everything(run_seed(control.key))
 
     if control.kind == "tfidf":
         predictions, cost = _fit_tfidf(split, tracker)
@@ -610,6 +679,65 @@ def _fit_transformer(
     return predictions, cost
 
 
+def _protocol_fingerprint(protocol: dict[str, Any]) -> tuple[Any, ...]:
+    """The fields two runs must agree on before their results can sit in one file.
+
+    Not the whole protocol: `device`, `torch` and `cooldown_seconds` differ between an afternoon
+    and a night without making the numbers incomparable. These four do make them incomparable.
+    """
+    return (
+        protocol.get("test_index_sha256"),
+        protocol.get("base_model"),
+        protocol.get("epochs"),
+        protocol.get("max_length"),
+    )
+
+
+def _merge_existing(
+    out: Path, done: list[dict[str, Any]], protocol: dict[str, Any], *, replace: bool
+) -> list[dict[str, Any]]:
+    """Fold this run's results into whatever is already in the file, keyed by control.
+
+    A partial run is the normal case - `--only` exists, and so does a budget that stops the night
+    early - and the first version of this function did not exist at all: the file was written
+    from the current run alone. `--only tfidf`, a command this module's own docstring suggests,
+    therefore replaced eighteen results with one and threw away nine hours of GPU time with no
+    warning. Merging is what makes re-running a single control the cheap operation it looks like.
+
+    Results from a run under a different protocol are refused rather than merged: a control scored
+    on a different test split is not comparable to the rows beside it, and a file that mixed the
+    two would look exactly like a file that did not.
+    """
+    if replace or not out.exists():
+        return list(done)
+
+    existing = json.loads(out.read_text(encoding="utf-8"))
+    previous: list[dict[str, Any]] = existing.get("controls", [])
+    if not previous:
+        return list(done)
+
+    before, now = (
+        _protocol_fingerprint(existing.get("protocol", {})),
+        _protocol_fingerprint(protocol),
+    )
+    if before != now:
+        raise SystemExit(
+            f"{out} holds results from a different protocol.\n"
+            f"  in the file: test split {before[0]}, {before[1]}, {before[2]} epoch(s), "
+            f"{before[3]} tokens\n"
+            f"  this run:    test split {now[0]}, {now[1]}, {now[2]} epoch(s), {now[3]} tokens\n"
+            "Controls from two protocols are not comparable to each other. Write somewhere else "
+            "with --out, or start the file over with --replace."
+        )
+
+    fresh = {entry["key"] for entry in done}
+    merged = {entry["key"]: entry for entry in previous if entry["key"] not in fresh}
+    merged.update({entry["key"]: entry for entry in done})
+    # Plan order rather than arrival order, so the file reads as the schedule it came from.
+    order = [control.key for control in controls()]
+    return sorted(merged.values(), key=lambda entry: order.index(entry["key"]))
+
+
 def _write(
     out: Path,
     selected: list[Control],
@@ -617,11 +745,45 @@ def _write(
     split: Any,
     device: str,
     cooldown: int = 0,
+    *,
+    replace: bool = False,
 ) -> None:
     """The controls file: what ran, what did not, and under exactly which protocol."""
     import torch
 
-    finished = {entry["key"] for entry in done}
+    protocol = {
+        "epochs": EPOCHS,
+        "train_rows": len(split.train),
+        "test_rows": len(split.test),
+        "test_index_sha256": split.test_index_sha256,
+        "max_length": MAX_LENGTH,
+        "batch_size": BATCH_SIZE,
+        "learning_rate": LEARNING_RATE,
+        "weight_decay": WEIGHT_DECAY,
+        "warmup_ratio": WARMUP_RATIO,
+        "base_model": BASE_MODEL,
+        "device": device,
+        # Idle seconds between runs. Nothing about the training, but it is why the
+        # timestamps are further apart than the training times account for.
+        "cooldown_seconds": cooldown,
+        "torch": str(torch.__version__),
+        "seed_policy": (
+            "torch.manual_seed(crc32(control key)) before each control is built, and the "
+            "DataLoader shuffles from a generator derived from it. The eighteen results "
+            "committed on 2026-08-01 predate this and were run unseeded; they are not re-run, "
+            "because that is nine hours of GPU time to change nothing about what they say."
+        ),
+        "source": (
+            "notebooks/*/\\*_Eval.ipynb, which agree on every value. AlphaNAS received "
+            "two epochs rather than one; that is a footnote on its row, not a licence "
+            "to give the controls two."
+        ),
+    }
+    kept = _merge_existing(out, done, protocol, replace=replace)
+    # The whole plan, not this invocation's slice of it: `--only uniform-4` is still one control
+    # out of eighteen, and a `planned` list of one would say the plan had always been one.
+    planned = [control.key for control in controls()] if not replace else [c.key for c in selected]
+    finished = {entry["key"] for entry in kept}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         json.dumps(
@@ -633,38 +795,18 @@ def _write(
                     "against other than each other. Trained under the protocol the shipped "
                     "checkpoints were, read out of the eval notebooks and not tuned here."
                 ),
-                "protocol": {
-                    "epochs": EPOCHS,
-                    "train_rows": len(split.train),
-                    "test_rows": len(split.test),
-                    "test_index_sha256": split.test_index_sha256,
-                    "max_length": MAX_LENGTH,
-                    "batch_size": BATCH_SIZE,
-                    "learning_rate": LEARNING_RATE,
-                    "weight_decay": WEIGHT_DECAY,
-                    "warmup_ratio": WARMUP_RATIO,
-                    "base_model": BASE_MODEL,
-                    "device": device,
-                    # Idle seconds between runs. Nothing about the training, but it is why the
-                    # timestamps are further apart than the training times account for.
-                    "cooldown_seconds": cooldown,
-                    "torch": str(torch.__version__),
-                    "source": (
-                        "notebooks/*/\\*_Eval.ipynb, which agree on every value. AlphaNAS received "
-                        "two epochs rather than one; that is a footnote on its row, not a licence "
-                        "to give the controls two."
-                    ),
-                },
+                "protocol": protocol,
                 # Stated rather than implied. A list of six results where eighteen were planned
                 # reads as "these are the controls" unless the plan is written down beside it.
-                "planned": [control.key for control in selected],
-                "not_run": [c.key for c in selected if c.key not in finished],
+                "planned": planned,
+                "not_run": [key for key in planned if key not in finished],
                 "weights_saved": False,
                 "weights_note": (
                     "The controls answer a question and the answer is a number; eighteen "
-                    "fine-tuned BERTs are seven gigabytes. Re-run this script to reproduce one."
+                    "fine-tuned BERTs are seven gigabytes. Re-run one with --only <key>: it is "
+                    "merged into this file rather than replacing it."
                 ),
-                "controls": done,
+                "controls": kept,
             },
             indent=2,
         )

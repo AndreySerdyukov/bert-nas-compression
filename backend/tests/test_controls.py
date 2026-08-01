@@ -7,6 +7,8 @@ informative run first, and the protocol is the notebooks' own rather than one tu
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -22,11 +24,14 @@ from training.train_reference import (
     WARMUP_RATIO,
     WEIGHT_DECAY,
     DepthCost,
+    _write,
     controls,
     evenly_spaced,
     print_schedule,
     project,
     random_mask,
+    run_seed,
+    seed_everything,
 )
 
 
@@ -54,7 +59,12 @@ def test_the_evenly_spaced_mask_is_naive_by_rule() -> None:
 
 
 def test_a_random_mask_is_reproducible_from_its_name() -> None:
-    """The seed is in the key, so any row of the results table can be re-run from what it says."""
+    """The seed is in the key, so the *mask* of any row can be re-drawn from what the row says.
+
+    Only the mask. The number beside it needs the training seed as well, which is what `run_seed`
+    is for - and which nothing pinned until 2026-08-01, so the committed results were produced
+    under an unseeded head initialisation and an unseeded shuffle.
+    """
     assert random_mask(4, 0) == random_mask(4, 0)
     assert random_mask(4, 0) != random_mask(4, 1)
     for seed in RANDOM_SEEDS:
@@ -168,3 +178,106 @@ def test_a_missing_depth_falls_back_to_the_nearest_measurement() -> None:
     projected = project(measured, steps_per_epoch=1000, test_rows=15_000)
     by_key = {control.key: seconds for control, seconds in projected}
     assert by_key["uniform-5"] == pytest.approx(0.4 * 1000)
+
+
+def test_each_control_trains_from_its_own_pinned_seed() -> None:
+    """Reproducibility of the number, not just of the mask.
+
+    Two controls sharing a seed would share a classifier initialisation, which is a correlation
+    between rows that are supposed to be independent observations. Derived from the key rather
+    than from `hash()`, which is salted per process and would give a different run every time.
+    """
+    seeds = {control.key: run_seed(control.key) for control in controls()}
+    assert len(set(seeds.values())) == len(seeds)
+    assert run_seed("uniform-4") == run_seed("uniform-4")
+    assert all(0 <= seed < 2**32 for seed in seeds.values())
+
+
+def test_seeding_pins_the_head_initialisation_and_the_shuffle() -> None:
+    """The two things that were loose. Torch only, since sklearn's control takes no seed here."""
+    torch = pytest.importorskip("torch")
+
+    seed_everything(run_seed("uniform-4"))
+    first = torch.randn(4)
+    seed_everything(run_seed("uniform-4"))
+    assert torch.equal(first, torch.randn(4))
+
+    seed_everything(run_seed("uniform-5"))
+    assert not torch.equal(first, torch.randn(4))
+
+
+# --- writing the results file --------------------------------------------------------------------
+
+
+class _Split:
+    """Enough of a Split for `_write`: it only reads the sizes and the test digest."""
+
+    def __init__(self, digest: str = "a" * 64) -> None:
+        self.train = [0] * 28_000
+        self.test = [0] * 15_000
+        self.test_index_sha256 = digest
+
+
+def _result(key: str, accuracy: float) -> dict[str, Any]:
+    return {"key": key, "label": key, "accuracy": accuracy, "train": {"seconds": 1.0}}
+
+
+def test_rerunning_one_control_keeps_the_other_seventeen(tmp_path: Path) -> None:
+    """The defect this merge exists for: `--only` used to rewrite the file from the current run.
+
+    Nine hours of GPU time lived in that file and one documented command discarded it silently.
+    So a partial run has to fold into what is already there, and `planned` has to stay the whole
+    plan rather than shrinking to whatever this invocation happened to select.
+    """
+    out = tmp_path / "controls.json"
+    plan = controls()
+    _write(out, plan, [_result(c.key, 0.9) for c in plan], _Split(), "mps")
+    assert len(json.loads(out.read_text())["controls"]) == len(plan)
+
+    # The `--only tfidf` shape: one control selected, one result, run against the same protocol.
+    _write(out, [plan[0]], [_result("tfidf", 0.9141)], _Split(), "mps")
+
+    written = json.loads(out.read_text())
+    assert len(written["controls"]) == len(plan)
+    assert written["planned"] == [control.key for control in plan]
+    assert written["not_run"] == []
+    rerun = next(entry for entry in written["controls"] if entry["key"] == "tfidf")
+    assert rerun["accuracy"] == 0.9141
+    # Plan order, not arrival order: the file reads as the schedule it came from.
+    assert [entry["key"] for entry in written["controls"]] == [control.key for control in plan]
+
+
+def test_a_partial_file_names_every_control_that_has_not_run(tmp_path: Path) -> None:
+    """A file with two results out of eighteen has to say so, or it reads as "the controls"."""
+    out = tmp_path / "controls.json"
+    plan = controls()
+    _write(out, plan, [_result("tfidf", 0.91), _result("uniform-4", 0.89)], _Split(), "mps")
+
+    written = json.loads(out.read_text())
+    assert len(written["controls"]) == 2
+    assert len(written["not_run"]) == len(plan) - 2
+    assert "distilbert" in written["not_run"]
+
+
+def test_results_from_another_split_are_refused_rather_than_mixed_in(tmp_path: Path) -> None:
+    """Two protocols in one file look exactly like one protocol, which is the whole problem."""
+    out = tmp_path / "controls.json"
+    _write(out, controls(), [_result("tfidf", 0.91)], _Split(digest="a" * 64), "mps")
+
+    with pytest.raises(SystemExit, match="different protocol"):
+        _write(out, controls(), [_result("tfidf", 0.92)], _Split(digest="b" * 64), "mps")
+
+    # And the file it refused to touch is untouched.
+    assert json.loads(out.read_text())["controls"][0]["accuracy"] == 0.91
+
+
+def test_replace_is_the_explicit_way_to_start_over(tmp_path: Path) -> None:
+    """Merging is the default; discarding the file has to be asked for by name."""
+    out = tmp_path / "controls.json"
+    plan = controls()
+    _write(out, plan, [_result(c.key, 0.9) for c in plan], _Split(), "mps")
+    _write(out, [plan[0]], [_result("tfidf", 0.91)], _Split(), "mps", replace=True)
+
+    written = json.loads(out.read_text())
+    assert [entry["key"] for entry in written["controls"]] == ["tfidf"]
+    assert written["planned"] == ["tfidf"]
