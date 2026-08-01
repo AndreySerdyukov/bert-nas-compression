@@ -110,6 +110,14 @@ export default function Benchmark() {
       nTokens: model.latency!.n_tokens,
     }));
 
+  // The memory pass is the one measurement that can come back empty - `benchmark.py` reads RSS
+  // through `ps` and reports a missing reading rather than guessing. `Math.min()` over nothing is
+  // `Infinity`, so the sentence below used to offer the reader an "Infinity GB floor". The table
+  // cell already said "not measured"; this is the footnote catching up with it.
+  const floors = models
+    .map((model) => model.runtime_baseline_bytes)
+    .filter((value): value is number => value !== null);
+
   return (
     <main className="mx-auto max-w-[900px] px-6 py-10">
       <header>
@@ -204,15 +212,14 @@ export default function Benchmark() {
                 {protocol.latency_threads} thread
                 {protocol.latency_threads === 1 ? "" : "s"}: {protocol.latency_warmup} warm-up
                 passes discarded, median of {protocol.latency_repeats} repeats, models interleaved
-                round-robin. Memory is the resident set of a process holding one model, less the{" "}
-                {formatBytes(
-                  Math.min(
-                    ...models
-                      .map((model) => model.runtime_baseline_bytes)
-                      .filter((value): value is number => value !== null),
-                  ),
-                )}{" "}
-                floor every model pays and none of them owns.
+                round-robin.
+                {floors.length > 0 && (
+                  <>
+                    {" "}
+                    Memory is the resident set of a process holding one model, less the{" "}
+                    {formatBytes(Math.min(...floors))} floor every model pays and none of them owns.
+                  </>
+                )}
               </p>
             </div>
           </section>
