@@ -1,0 +1,25 @@
+<!-- The brand mark: an encoder stack with two of its four layers kept.
+
+     The layer mask is the one visual idea this project turns on, so the mark is that idea and
+     nothing else. Four bars rather than twelve, because at 18px twelve is a smudge; the filled
+     pair is at the top because the bottom of a BERT stack is what the controls found actually
+     matters, and the mark may as well carry the finding.
+
+     Monochrome and stroked with currentColor, so one file serves the header, the light theme and
+     the dark one. -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  role="img"
+  aria-label="bert-nas"
+>
+  <rect x="4.75" y="3.75" width="14.5" height="3.2" rx="1.1" fill="currentColor" stroke="none" />
+  <rect x="4.75" y="8.6" width="14.5" height="3.2" rx="1.1" fill="currentColor" stroke="none" />
+  <rect x="4.75" y="13.45" width="14.5" height="3.2" rx="1.1" />
+  <rect x="4.75" y="18.3" width="14.5" height="3.2" rx="1.1" />
+</svg>
