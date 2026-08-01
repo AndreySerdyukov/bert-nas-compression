@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 
 import {
   fetchArchitectures,
+  fetchBenchmark,
+  fetchControls,
   fetchReportedResults,
   fetchTrajectories,
   type Architectures,
+  type Benchmark,
+  type Controls,
   type ReportedResults,
   type Trajectories,
 } from "../api";
@@ -39,6 +43,10 @@ function cached<T>(loader: () => Promise<T>): () => Promise<T> {
 const loadArchitectures = cached(fetchArchitectures);
 const loadTrajectories = cached(fetchTrajectories);
 const loadReportedResults = cached(fetchReportedResults);
+// These two differ from the three above: they answer 503 until someone has spent the hours on
+// them, so a caller has to render "not measured yet" as an explanation rather than as a failure.
+const loadBenchmark = cached(fetchBenchmark);
+const loadControls = cached(fetchControls);
 
 function useAsync<T>(loader: () => Promise<T>): Async<T> {
   const [state, setState] = useState<Async<T>>({ data: null, error: null, loading: true });
@@ -67,3 +75,5 @@ function useAsync<T>(loader: () => Promise<T>): Async<T> {
 export const useArchitectures = (): Async<Architectures> => useAsync(loadArchitectures);
 export const useTrajectories = (): Async<Trajectories> => useAsync(loadTrajectories);
 export const useReportedResults = (): Async<ReportedResults> => useAsync(loadReportedResults);
+export const useBenchmark = (): Async<Benchmark> => useAsync(loadBenchmark);
+export const useControls = (): Async<Controls> => useAsync(loadControls);

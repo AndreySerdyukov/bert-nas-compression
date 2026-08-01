@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 
+import Benchmark from "./pages/Benchmark";
 import Chapter from "./pages/Chapter";
 import Methodology from "./pages/Methodology";
 import Playground from "./pages/Playground";
@@ -77,10 +78,7 @@ export default function App() {
             path="/explorer"
             element={<Stub title="Explorer" note="Pick any subset of the twelve encoder layers." />}
           />
-          <Route
-            path="/benchmark"
-            element={<Stub title="Benchmark" note="Every number this project publishes." />}
-          />
+          <Route path="/benchmark" element={<Benchmark />} />
           <Route path="/methodology" element={<Methodology />} />
           <Route path="/methodology/:slug" element={<Chapter />} />
           <Route path="*" element={<Stub title="Not found" note="No such page." />} />
