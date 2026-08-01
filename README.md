@@ -1,77 +1,58 @@
 # BERT NAS Compression
 
-**What Neural Architecture Search actually buys when you compress a BERT classifier - measured,
-with the controls that make the measurement mean something.** Four NAS strategies were used to cut a
-109.5M-parameter sentiment model down to 4-5 encoder layers. This repository serves those models,
-re-measures them honestly, and explains the method in ten chapters you can click through.
+**What Neural Architecture Search actually bought when four strategies compressed a BERT sentiment
+classifier - measured, against the controls that make the measurement mean something.**
 
 `FastAPI` · `React + TypeScript` · `PyTorch` · `transformers` · layer-mask NAS over BERT-base
 
-> **Rebuild in progress.** The original academic project is preserved unchanged in
-> [`notebooks/`](notebooks/); this is the application being built around it. The benchmark table
-> below is the *original's* result, reproduced here as the thing being checked - not as this
-> project's answer. See [Status](#status).
-
-> Sibling projects: [ML Playground](https://github.com/AndreySerdyukov/ml-playground) - six tabular
-> models behind one metadata-driven UI, and
-> [DL Playground](https://github.com/AndreySerdyukov/dl-playground) - the same idea for PyTorch
-> across image, text and tabular input.
+Sibling projects: [ML Playground](https://github.com/AndreySerdyukov/ml-playground) ·
+[DL Playground](https://github.com/AndreySerdyukov/dl-playground)
 
 ---
 
-## What this is
+## The finding
 
-A team of three spent a term compressing `bert-base-uncased` for binary sentiment on IMDB, using
-four Neural Architecture Search strategies implemented from scratch. For three of them the search
-space is a single 12-bit mask: **which of the twelve encoder layers to keep**. The parameter count
-follows from the mask alone -
+A team of three spent a term cutting `bert-base-uncased` down to four or five encoder layers with
+NAS, and compared the results against each other. This rebuild compared them against controls
+instead - eighteen of them, trained under the same protocol on the same split.
+
+- **TF-IDF with logistic regression scores higher than all four searched models** (0.9141 against
+  0.9027-0.9077), in ten seconds of CPU and with no transformer at all.
+- **DistilBERT gives up 0.35 points to full BERT where the best searched model gives up 2.53**, at
+  the same parameter count to within 1 536 parameters.
+- **Keeping the bottom k layers beats the search at both depths.** It is written `range(k)`.
+- Against five random masks per depth, the four-layer results sit **below the median**.
+
+A Wilson interval on 15 000 rows is about ±0.46 points, so the careful version is not that naive
+rules win. It is that **the result of the search is indistinguishable from a random mask of the same
+depth** - and the search cost days of compute where the random mask costs one line.
+
+None of this says the searches were built wrong. They were implemented from scratch and they work.
+It says the comparison that would have told anyone what they were worth was never run.
+
+## What you can do with it
+
+- **Playground** - paste a review, run every model on it at once, and find the reviews where a
+  four-layer network stops agreeing with the full one.
+- **Explorer** - cut layers out of the fine-tuned model and watch accuracy collapse to 50.00% on
+  2 000 reviews. Beside it, the same mask trained properly: 90.62%. That gap is what training each
+  candidate buys, and why a search cannot skip it.
+- **Benchmark** - every number this project publishes, the eighteen controls beside them, and a
+  verdict per encoder depth.
+- **Methodology** - ten chapters on what NAS is, what each method did, and what the audit of the
+  original notebooks found. Works with no weights downloaded at all.
+
+The search space is a 12-bit mask over encoder layers, so the cost side of the trade is arithmetic:
 
 ```
 params(k) = 24 429 314 + 7 087 872 · k
 ```
 
-- so the whole cost side of the trade is arithmetic, and only the quality side needs a GPU. That
-asymmetry is what the application is built around.
-
-Two halves, both first-class:
-
-- **A playground.** Paste a review, run it through every model at once, and watch a 4-layer network
-  agree with the full one until it does not. A button finds the reviews where they disagree, because
-  "2.5 points of accuracy" means more when it is fifty specific reviews you can read.
-- **A methodology section.** Ten chapters on what NAS is, what each of the four methods does, and
-  what happened when they were run - with the interactive pieces inline. Toggle layers and watch the
-  cost change; move the fitness weights and watch the winner move; step a Bayesian surrogate through
-  its own acquisition loop.
-
-## Why it needed rebuilding
-
-The original produced four mutually contradictory result tables and measured latency without a
-warm-up. More importantly, it compared the compressed models against **three home-made baselines**
-that disagree with each other by 0.8 points - so a 2.5-point drop could not be separated from
-run-to-run variance.
-
-This rebuild keeps one baseline and adds the controls the question actually needs:
-
-| Control | The question it answers |
-|---|---|
-| Evenly-spaced / first-k / last-k masks | Did *searching* beat "keep every third layer"? |
-| Random masks of the same size, several seeds | Is the found mask in the tail of the distribution, or the middle? |
-| DistilBERT | How does distillation compare to search at a similar size? |
-| TF-IDF + logistic regression | How much of this task needs a transformer at all? |
-
-Every control is fine-tuned under the same protocol as the shipped NAS winners - one epoch on the
-same 28 000 training rows at the same sequence length - and measured on the same test split by the
-same harness. Nobody's reported figure is quoted, [and there is a specific reason for
-that](data/README.md#-this-split-overlaps-the-official-imdb-partition).
-
-It is entirely possible that a naive mask matches the searched one. If so, that is the result, and
-it gets published as the result.
-
 ## Measured here
 
-Generated from `backend/data/benchmark.json` by
+Generated from `backend/data/benchmark.json` and `backend/data/controls.json` by
 [`scripts/render_readme_table.py`](backend/scripts/render_readme_table.py), which CI re-runs with
-`--check`. A number in this table cannot change without being re-measured first.
+`--check`. A number here cannot change without being re-measured first.
 
 <!-- benchmark:start -->
 
@@ -85,45 +66,52 @@ Generated from `backend/data/benchmark.json` by
 
 Measured on the full 15,000 row test split (index sha256 `33d7fee10704`) by [`training/benchmark.py`](backend/training/benchmark.py).
 
-**Accuracy** on `mps`. **Latency** is single-example, batch 1, on `cpu` with 1 thread: 5 warm-up passes discarded, median of 25 repeats, models interleaved round-robin. **Throughput** is a batch of 16 and is a different quantity - dividing it by the batch size does not give the latency column. Darwin arm64, torch 2.13.0, transformers 5.14.1.
+**Accuracy** on `mps`. **Latency** is single-example on `cpu`, 1 thread, 5 warm-ups discarded, median of 25, round-robin. **Throughput** is a batch of 16 and a different quantity: dividing it by the batch size does not give the latency column. Darwin arm64, torch 2.13.0, transformers 5.14.1.
 
-All five timed the same review, but not on the same amount of work: BERT-base 33, Random Search 33, AlphaNAS 33, BANANAS 33, AdaBERT 128 tokens. The models that mask their padding see the review itself; AdaBERT has no attention mask and is served at a fixed 128, so its column is a shorter time over more tokens rather than a shorter time over the same ones.
+All five timed the same review over different amounts of work: BERT-base 33, Random Search 33, AlphaNAS 33, BANANAS 33, AdaBERT 128 tokens. AdaBERT has no attention mask and is served at a fixed 128, so its column is a shorter time over *more* tokens.
 
-**Memory** is the resident set of a process holding one loaded and warmed model, less the 411 MB that torch and transformers occupy before any model is loaded - a floor every model pays and none of them owns. Each is weighed in its own process: weighed one after another in one process, a freed model's pages go back to Python's allocator rather than to the OS and the next model looks nearly free. The figures run below the fp32 weight size because a safetensors checkpoint is mapped rather than copied, and pages nothing reads never become resident.
+**Memory** is one model per process, less the 411 MB floor torch and transformers occupy before any model loads. Weighed one after another in a single process instead, a freed model's pages return to Python's allocator rather than to the OS and every model after the first looks nearly free.
 
 ### The controls
 
-| Control | Layers | Accuracy | Macro F1 | The question it answers |
-|---|---|---:|---:|---|
-| TF-IDF + logistic regression | - | 0.9141 | 0.9141 | How much of this task needs a transformer at all? |
-| Evenly spaced, 4 layers | 0,4,7,11 | 0.8959 | 0.8958 | Did searching beat keeping every third layer? |
-| Evenly spaced, 5 layers | 0,3,6,8,11 | 0.9080 | 0.9079 | Did searching beat keeping every third layer? |
-| First 4 layers | 0,1,2,3 | 0.9062 | 0.9061 | Does it matter which end of the stack the layers come from? |
-| First 5 layers | 0,1,2,3,4 | 0.9114 | 0.9114 | Does it matter which end of the stack the layers come from? |
-| Last 4 layers | 8,9,10,11 | 0.8799 | 0.8799 | Does it matter which end of the stack the layers come from? |
-| Last 5 layers | 7,8,9,10,11 | 0.8851 | 0.8850 | Does it matter which end of the stack the layers come from? |
-| DistilBERT | - | 0.9295 | 0.9295 | How does distillation compare with search at a similar size? |
-| Random 4 layers, seed 0 | 0,4,6,11 | 0.8940 | 0.8939 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 4 layers, seed 1 | 1,2,4,9 | 0.9065 | 0.9065 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 4 layers, seed 2 | 0,1,5,10 | 0.9039 | 0.9038 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 4 layers, seed 3 | 2,3,8,9 | 0.9003 | 0.9002 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 4 layers, seed 4 | 1,3,4,6 | 0.9057 | 0.9057 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 5 layers, seed 0 | 0,4,6,7,11 | 0.9023 | 0.9023 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 5 layers, seed 1 | 1,2,4,9,10 | 0.9061 | 0.9061 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 5 layers, seed 2 | 0,1,2,5,10 | 0.9099 | 0.9099 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 5 layers, seed 3 | 2,3,5,8,9 | 0.9067 | 0.9067 | Is the found mask in the tail of the distribution, or the middle? |
-| Random 5 layers, seed 4 | 1,3,4,6,7 | 0.9087 | 0.9087 | Is the found mask in the tail of the distribution, or the middle? |
+| Control | Layers | Accuracy | Macro F1 |
+|---|---|---:|---:|
+| DistilBERT | - | 0.9295 | 0.9295 |
+| TF-IDF + logistic regression | - | 0.9141 | 0.9141 |
+| First 5 layers | 0,1,2,3,4 | 0.9114 | 0.9114 |
+| Random 5 layers, seed 2 | 0,1,2,5,10 | 0.9099 | 0.9099 |
+| Random 5 layers, seed 4 | 1,3,4,6,7 | 0.9087 | 0.9087 |
+| Evenly spaced, 5 layers | 0,3,6,8,11 | 0.9080 | 0.9079 |
+| Random 5 layers, seed 3 | 2,3,5,8,9 | 0.9067 | 0.9067 |
+| Random 4 layers, seed 1 | 1,2,4,9 | 0.9065 | 0.9065 |
+| First 4 layers | 0,1,2,3 | 0.9062 | 0.9061 |
+| Random 5 layers, seed 1 | 1,2,4,9,10 | 0.9061 | 0.9061 |
+| Random 4 layers, seed 4 | 1,3,4,6 | 0.9057 | 0.9057 |
+| Random 4 layers, seed 2 | 0,1,5,10 | 0.9039 | 0.9038 |
+| Random 5 layers, seed 0 | 0,4,6,7,11 | 0.9023 | 0.9023 |
+| Random 4 layers, seed 3 | 2,3,8,9 | 0.9003 | 0.9002 |
+| Evenly spaced, 4 layers | 0,4,7,11 | 0.8959 | 0.8958 |
+| Random 4 layers, seed 0 | 0,4,6,11 | 0.8940 | 0.8939 |
+| Last 5 layers | 7,8,9,10,11 | 0.8851 | 0.8850 |
+| Last 4 layers | 8,9,10,11 | 0.8799 | 0.8799 |
 
-Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: 1 epoch over all 28,000 training rows, 512 tokens, batch 16, AdamW at 3e-05 with weight decay 0.01 and a 10% warm-up. Nothing here was tuned - shortening the training would bias every comparison on this page in this project's favour.
+They answer 5 questions:
+
+1. How much of this task needs a transformer at all?
+2. Did searching beat keeping every third layer?
+3. Does it matter which end of the stack the layers come from?
+4. How does distillation compare with search at a similar size?
+5. Is the found mask in the tail of the distribution, or the middle?
+
+Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: 1 epoch over all 28,000 training rows, 512 tokens, batch 16, AdamW at 3e-05 with weight decay 0.01 and a 10% warm-up. Nothing was tuned - shortening the training would bias every comparison on this page in this project's favour.
 
 <!-- benchmark:end -->
 
 ## What the original reported
 
 The head-to-head from `notebooks/results/NAS_Results.ipynb` - the only one of its four tables that
-scores every model on one test set with one harness. **These are the numbers being checked, not
-numbers this project stands behind.** They are kept here so the comparison above has something to
-be a comparison with.
+scores every model on one test set. **These are the numbers being checked, not numbers this project
+stands behind.**
 
 | Model | Method | Accuracy | Params | ms/example* |
 |---|---|---:|---:|---:|
@@ -133,21 +121,18 @@ be a comparison with.
 | AlphaNAS | evolutionary NAS, 4 layers | 0.9027 | 52 780 802 | 0.30 |
 | AdaBERT | differentiable NAS | 0.8801 | 7 814 146 | 0.02 |
 
-\* Not single-example latency. The figure is mean wall-clock per batch divided by 16, taken with no
-warm-up and no CUDA synchronisation - a throughput number reported as a latency one. The replacement
-measures both, names them differently, and publishes median and p95.
+\* A throughput number reported as a latency: mean wall-clock per batch over 16, no warm-up, no
+synchronisation. The replacement measures both, names them differently, and publishes median and p95.
 
-Two of the rows are worth reading twice. **AdaBERT's search degenerated to parameter-free
-operations**, so the 7.8M model is a bag of embeddings rather than a distilled transformer - the
-checkpoint size on the Hub confirms it to the byte. And **Random Search reports one architecture and
-ships another**: the write-up says `[0,1,6,8,10]`, the uploaded model is `[0,1,5,7,9]`. Both facts,
-and eight more, are in [`notebooks/README.md`](notebooks/README.md#what-did-not-reproduce). They are
-findings about methods and scripts, not about people.
+Two rows repay a second look: **AdaBERT's search degenerated to parameter-free operations** (the
+7.8M model is a bag of embeddings, not a distilled transformer), and **Random Search reports
+`[0,1,6,8,10]` but ships `[0,1,5,7,9]`**. Both, and eight more, are in
+[`notebooks/README.md`](notebooks/README.md#what-did-not-reproduce) - findings about methods and
+scripts, never about people.
 
 ## Models
 
-Fine-tuned checkpoints live on the Hugging Face Hub and are downloaded on demand - they are not in
-this repository and never were.
+Checkpoints live on the Hugging Face Hub and are downloaded on demand.
 
 | Name | Layers | Params | Source |
 |---|---:|---:|---|
@@ -157,78 +142,53 @@ this repository and never were.
 | `bananas` | 4 | 52 780 802 | [alinaselivanets/bananas-bert](https://huggingface.co/alinaselivanets/bananas-bert) |
 | `adabert` | n/a | 7 814 146 | [ilkonz/dnas](https://huggingface.co/ilkonz/dnas) |
 
-**None of these carry `id2label`.** Class polarity is therefore established empirically at download
-time, pinned into the manifest, re-checked on every load, and asserted in the test suite. Serving
-inverted sentiment is the worst available failure mode, because from the outside it looks perfectly
-healthy.
+**None carry `id2label`**, so class polarity is measured at download time, pinned into the manifest
+and re-checked on every load. Serving inverted sentiment is the worst failure available here,
+because from outside it looks perfectly healthy.
 
-## Run locally
+## Run it
 
 ```bash
 # Backend
 cd backend
-uv venv --python 3.12
-uv pip install -e . --group dev
-python scripts/fetch_models.py         # ~1.1 GB from the Hub, once
-uv run uvicorn app.main:create_app --factory --reload   # http://127.0.0.1:8000
+uv venv --python 3.12 && uv pip install -e . --group dev
+python scripts/fetch_models.py                           # ~1.1 GB from the Hub, once
+uv run uvicorn app.main:create_app --factory --reload     # :8000
 
-# Frontend (another terminal)
-cd frontend
-npm install && npm run dev             # http://127.0.0.1:5173, /api proxied to :8000
+# Frontend, another terminal
+cd frontend && npm install && npm run dev                  # :5173, /api proxied to :8000
 ```
 
-**A clean clone works without the download.** The methodology section, the architecture explorer's
-cost arithmetic and the whole test suite need no weights at all; the endpoints that need a
-prediction answer `503` and say which script to run. If port 8000 is taken,
-`BACKEND_URL=http://localhost:8010 npm run dev` points the proxy elsewhere.
+**A clean clone works without the download**: the methodology half and the whole test suite need no
+weights, and endpoints that need a prediction answer `503` naming the script to run. Port taken?
+`BACKEND_URL=http://localhost:8010 npm run dev`.
 
-## Run in Docker
-
-```bash
-docker compose up --build              # frontend :3000, backend :8000
-```
-
-The image ships without weights - they are gitignored, so the build is identical whether or not the
-machine building it has downloaded anything. Mount them in to get predictions:
-
-```bash
-docker compose run --rm -v "$PWD/backend/models:/app/models:ro" -p 8000:8000 backend
-```
+`docker compose up --build` serves the frontend on :3000. The image ships without weights; mount
+them in with `-v "$PWD/backend/models:/app/models:ro"`. The IMDB corpus is needed only to re-run the
+benchmark or retrain the controls - `python scripts/fetch_imdb.py`, see
+[`data/README.md`](data/README.md).
 
 ## Development
 
 ```bash
-cd backend  && ruff check . && ruff format --check . && mypy app training && pytest
+cd backend  && ruff check . && ruff format --check . && mypy app training scripts && pytest
 cd frontend && npm run lint && npm run format:check && npm run build && npm run check:deps && npm run test:e2e
 ```
 
-`npm run check:deps` enforces two claims: the runtime dependency list is exactly three packages, and
-no MDX runtime reached the bundle. The methodology chapters are `.mdx` compiled at build time, which
-keeps ten chapters of prose out of JSX without shipping a markdown parser to every visitor - but
-one configuration line would silently undo that, so it is checked rather than trusted.
+158 backend tests, 46 browser tests, three CI jobs. `check:deps` enforces two claims that one
+configuration line would silently undo: exactly three runtime dependencies, and no MDX runtime in
+the bundle.
 
 ## Repository layout
 
 | Path | What's in it |
 |---|---|
 | `backend/app/` | The service: `api/` → `services/` → `repositories/` + `serving/` |
-| `backend/training/` | The benchmark harness, the reference fine-tunes, the notebook trajectory extractor |
-| `backend/data/` | Committed: the evaluation sample, the architectures, the search trajectories, the measured results |
-| `frontend/src/content/` | The ten methodology chapters and their interactive widgets |
+| `backend/training/` | Benchmark harness, the eighteen controls, the notebook extractor |
+| `backend/data/` | Committed measurements and the evaluation sample |
+| `frontend/src/content/` | The ten methodology chapters and their widgets |
 | `notebooks/` | The original Colab notebooks, unchanged. See [`notebooks/README.md`](notebooks/README.md) |
 | `papers/` | The four reference papers and the final presentation |
-| `data/` | Where the IMDB corpus goes. See [`data/README.md`](data/README.md) |
-
-## Status
-
-**The methodology section is complete and needs no weights at all** - ten chapters, three
-interactive widgets, and every figure drawn from data parsed out of the notebooks and verified
-against them in CI. Along with it: the data spine (`architectures.json`, `search_trajectories.json`,
-`reported_results.json`), the mask arithmetic in both languages, 49 backend tests and 18 browser
-tests.
-
-Next: model serving and the playground, then the honest benchmark with its controls, then the
-architecture explorer.
 
 ## Credits
 

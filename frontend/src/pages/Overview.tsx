@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import MetricBlock from "../components/MetricBlock";
 import { formatAccuracyPrecise } from "../components/charts/scale";
 import { useBenchmark, useControls } from "../lib/useContent";
 
@@ -17,27 +18,6 @@ import { useBenchmark, useControls } from "../lib/useContent";
  * because a headline figure typed into prose is one that can drift from the JSON it came from -
  * which is the defect chapter 9 is about.
  */
-
-interface HeadlineProps {
-  label: string;
-  value: string;
-  note: string;
-  accent?: boolean;
-}
-
-function Headline({ label, value, note, accent }: HeadlineProps) {
-  return (
-    <div className="panel p-4">
-      <div className="section-label">{label}</div>
-      <div
-        className={`mt-2 text-[28px] font-semibold tabular-nums tracking-tight ${accent ? "text-accent" : ""}`}
-      >
-        {value}
-      </div>
-      <p className="mt-1 text-[13px] leading-snug text-slate">{note}</p>
-    </div>
-  );
-}
 
 function Card({ to, title, body }: { to: string; title: string; body: string }) {
   return (
@@ -78,22 +58,22 @@ export default function Overview() {
       {bestSearched && tfidf && (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Headline
+            <MetricBlock
               label="Best searched model"
               value={formatAccuracyPrecise(bestSearched.accuracy)}
-              note={`${bestSearched.label}, ${bestSearched.n_layers ?? "?"} of 12 encoder layers, found by a search that ran for days`}
+              caption={`${bestSearched.label}, ${bestSearched.n_layers ?? "?"} of 12 encoder layers, found by a search that ran for days`}
             />
-            <Headline
+            <MetricBlock
               label="TF-IDF + logistic regression"
               value={formatAccuracyPrecise(tfidf.accuracy)}
-              note={`No transformer at all, ${Math.round(tfidf.train.seconds)} seconds of CPU, and it scores higher`}
+              caption={`No transformer at all, ${Math.round(tfidf.train.seconds)} seconds of CPU, and it scores higher`}
               accent
             />
             {distil && (
-              <Headline
+              <MetricBlock
                 label="DistilBERT, same size"
                 value={formatAccuracyPrecise(distil.accuracy)}
-                note={
+                caption={
                   baseline
                     ? `Gives up ${((baseline.accuracy - distil.accuracy) * 100).toFixed(2)} points to full BERT, where the best searched model gives up ${((baseline.accuracy - bestSearched.accuracy) * 100).toFixed(2)}`
                     : "A distilled model of comparable size"

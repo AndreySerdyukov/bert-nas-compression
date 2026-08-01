@@ -91,15 +91,14 @@ def render(benchmark: dict[str, Any]) -> str:
         ),
         "",
         (
-            f"**Accuracy** on `{protocol['accuracy_device']}`. **Latency** is single-example, batch 1, "
-            f"on `{protocol['latency_device']}` with {protocol['latency_threads']} thread"
-            f"{'s' if protocol['latency_threads'] != 1 else ''}: "
-            f"{protocol['latency_warmup']} warm-up passes discarded, median of "
-            f"{protocol['latency_repeats']} repeats, models interleaved round-robin. "
-            f"**Throughput** is a batch of {protocol['throughput_batch']} and is a different quantity - "
-            "dividing it by the batch size does not give the latency column. "
-            f"{protocol['machine']}, torch {protocol['torch']}, "
-            f"transformers {protocol['transformers']}."
+            f"**Accuracy** on `{protocol['accuracy_device']}`. **Latency** is single-example on "
+            f"`{protocol['latency_device']}`, {protocol['latency_threads']} thread"
+            f"{'s' if protocol['latency_threads'] != 1 else ''}, "
+            f"{protocol['latency_warmup']} warm-ups discarded, median of "
+            f"{protocol['latency_repeats']}, round-robin. **Throughput** is a batch of "
+            f"{protocol['throughput_batch']} and a different quantity: dividing it by the batch "
+            f"size does not give the latency column. {protocol['machine']}, torch "
+            f"{protocol['torch']}, transformers {protocol['transformers']}."
         ),
     ]
 
@@ -115,10 +114,9 @@ def render(benchmark: dict[str, Any]) -> str:
         lines += [
             "",
             (
-                "All five timed the same review, but not on the same amount of work: "
-                f"{counts} tokens. The models that mask their padding see the review itself; "
+                f"All five timed the same review over different amounts of work: {counts} tokens. "
                 "AdaBERT has no attention mask and is served at a fixed 128, so its column is a "
-                "shorter time over more tokens rather than a shorter time over the same ones."
+                "shorter time over *more* tokens."
             ),
         ]
 
@@ -131,14 +129,10 @@ def render(benchmark: dict[str, Any]) -> str:
         lines += [
             "",
             (
-                f"**Memory** is the resident set of a process holding one loaded and warmed model, "
-                f"less the {megabytes(min(floors))} that torch and transformers occupy before any "
-                "model is loaded - a floor every model pays and none of them owns. Each is weighed "
-                "in its own process: weighed one after another in one process, a freed model's "
-                "pages go back to Python's allocator rather than to the OS and the next model looks "
-                "nearly free. The figures run below the fp32 weight size because a safetensors "
-                "checkpoint is mapped rather than copied, and pages nothing reads never become "
-                "resident."
+                f"**Memory** is one model per process, less the {megabytes(min(floors))} floor "
+                "torch and transformers occupy before any model loads. Weighed one after another "
+                "in a single process instead, a freed model's pages return to Python's allocator "
+                "rather than to the OS and every model after the first looks nearly free."
             ),
         ]
     return "\n".join(lines)
@@ -147,21 +141,36 @@ def render(benchmark: dict[str, Any]) -> str:
 def render_controls(controls: dict[str, Any]) -> str:
     """The controls table: what was actually run, and what was not.
 
+    Sorted best first, because the ordering is the finding - a reader who sees TF-IDF and DistilBERT
+    above every searched architecture has the point of the table before reading a word of it.
+
+    The question each control answers is printed once per group rather than once per row. Ten
+    consecutive rows repeating "is the found mask in the tail of the distribution, or the middle?"
+    is the same sentence ten times, and it pushed the accuracy columns off the side of the page.
+
     `not_run` is printed rather than omitted. A list of six results where eighteen were planned
     reads as "these are the controls" unless the plan is written down beside it, and a control
     that quietly went missing is how a comparison ends up flattering whoever ran it.
     """
     protocol = controls["protocol"]
-    lines = [
-        "| Control | Layers | Accuracy | Macro F1 | The question it answers |",
-        "|---|---|---:|---:|---|",
-    ]
-    for entry in controls["controls"]:
+    ranked = sorted(controls["controls"], key=lambda entry: -entry["accuracy"])
+
+    lines = ["| Control | Layers | Accuracy | Macro F1 |", "|---|---|---:|---:|"]
+    for entry in ranked:
         layers = "-" if not entry["layers"] else ",".join(str(index) for index in entry["layers"])
         lines.append(
-            f"| {entry['label']} | {layers} | {entry['accuracy']:.4f} | "
-            f"{entry['macro_f1']:.4f} | {entry['question']} |"
+            f"| {entry['label']} | {layers} | {entry['accuracy']:.4f} | {entry['macro_f1']:.4f} |"
         )
+
+    # Deduplicated in the order the controls were planned, so the list reads as the sequence of
+    # questions the run was designed to answer.
+    questions: list[str] = []
+    for entry in controls["controls"]:
+        if entry["question"] not in questions:
+            questions.append(entry["question"])
+
+    lines += ["", f"They answer {len(questions)} questions:", ""]
+    lines += [f"{index}. {question}" for index, question in enumerate(questions, start=1)]
 
     lines += [
         "",
@@ -170,8 +179,8 @@ def render_controls(controls: dict[str, Any]) -> str:
             f"{protocol['epochs']} epoch over all {protocol['train_rows']:,} training rows, "
             f"{protocol['max_length']} tokens, batch {protocol['batch_size']}, AdamW at "
             f"{protocol['learning_rate']} with weight decay {protocol['weight_decay']} and a "
-            f"{protocol['warmup_ratio']:.0%} warm-up. Nothing here was tuned - shortening the "
-            "training would bias every comparison on this page in this project's favour."
+            f"{protocol['warmup_ratio']:.0%} warm-up. Nothing was tuned - shortening the training "
+            "would bias every comparison on this page in this project's favour."
         ),
     ]
     if controls["not_run"]:

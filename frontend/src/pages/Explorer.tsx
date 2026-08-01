@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ablationResult, type ScoredRun } from "../api";
 import JobProgress from "../components/JobProgress";
 import LayerMask from "../components/LayerMask";
+import MetricBlock from "../components/MetricBlock";
 import { formatAccuracyPrecise, formatParams } from "../components/charts/scale";
 import { PRESETS, trainedTwin } from "../lib/ablation";
 import { N_LAYERS, layersFromMask, maskFromLayers, paramsFor } from "../lib/arch";
@@ -27,35 +28,9 @@ import { useJob } from "../lib/useJob";
 // comparison that has an answer rather than on an empty stack.
 const DEFAULT_MASK = maskFromLayers([0, 1, 2, 3]);
 
-function Interval({ run }: { run: ScoredRun }) {
-  return (
-    <span className="text-[12px] text-slate">
-      {formatAccuracyPrecise(run.wilson_low)} – {formatAccuracyPrecise(run.wilson_high)}
-    </span>
-  );
-}
-
-interface ColumnProps {
-  title: string;
-  subtitle: string;
-  value: string;
-  interval?: React.ReactNode;
-  accent?: boolean;
-}
-
-function Column({ title, subtitle, value, interval, accent }: ColumnProps) {
-  return (
-    <div className="panel p-4">
-      <div className="section-label">{title}</div>
-      <div
-        className={`mt-2 text-[26px] font-semibold tabular-nums tracking-tight ${accent ? "text-accent" : ""}`}
-      >
-        {value}
-      </div>
-      {interval && <div className="mt-0.5">{interval}</div>}
-      <p className="mt-2 text-[13px] leading-snug text-slate">{subtitle}</p>
-    </div>
-  );
+/** The Wilson bounds as one string, for the slot MetricBlock keeps under the number. */
+function interval(run: ScoredRun): string {
+  return `${formatAccuracyPrecise(run.wilson_low)} – ${formatAccuracyPrecise(run.wilson_high)}`;
 }
 
 export default function Explorer() {
@@ -170,29 +145,29 @@ export default function Explorer() {
               {result.n_layers} layers, over {result.rows_scanned.toLocaleString("en-US")} reviews
             </h2>
             <div className="mt-3 grid gap-4 sm:grid-cols-3">
-              <Column
-                title="Amputated, not retrained"
+              <MetricBlock
+                label="Amputated, not retrained"
                 value={formatAccuracyPrecise(result.ablated.accuracy)}
-                interval={<Interval run={result.ablated} />}
-                subtitle="This mask applied to the fine-tuned baseline, scored as-is."
+                interval={interval(result.ablated)}
+                caption="This mask applied to the fine-tuned baseline, scored as-is."
                 accent
               />
-              <Column
-                title="The same mask, trained"
+              <MetricBlock
+                label="The same mask, trained"
                 value={
                   Number.isNaN(twinAccuracy) ? "no such model" : formatAccuracyPrecise(twinAccuracy)
                 }
-                subtitle={
+                caption={
                   twin
                     ? `${twin.label}, trained on this mask and scored on the full ${twin.rows.toLocaleString("en-US")}-row split - a different set of reviews from the two columns beside it.`
                     : "Nobody has trained this mask. There are 4 096 of them and twenty-two trained models, so most masks have no counterpart."
                 }
               />
-              <Column
-                title={`${result.baseline_label}, all 12 layers`}
+              <MetricBlock
+                label={`${result.baseline_label}, all 12 layers`}
                 value={formatAccuracyPrecise(result.full.accuracy)}
-                interval={<Interval run={result.full} />}
-                subtitle="The same weights at full depth, scored in the same pass on the same reviews."
+                interval={interval(result.full)}
+                caption="The same weights at full depth, scored in the same pass on the same reviews."
               />
             </div>
 

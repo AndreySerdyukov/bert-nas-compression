@@ -124,8 +124,8 @@ def test_the_table_carries_the_protocol_that_makes_it_comparable() -> None:
     rendered = render(_benchmark_fixture())
     assert "15,000 row test split" in rendered
     assert "33d7fee10704" in rendered
-    assert "`cpu` with 1 thread" in rendered
-    assert "5 warm-up passes discarded" in rendered
+    assert "`cpu`, 1 thread" in rendered
+    assert "5 warm-ups discarded" in rendered
     assert "round-robin" in rendered
     assert "Darwin arm64" in rendered
 
@@ -162,7 +162,7 @@ def test_the_memory_column_names_the_floor_it_excludes() -> None:
     rendered = render(fixture)
 
     assert "| 386 MB |" in rendered
-    assert "412 MB that torch and transformers occupy" in rendered
+    assert "412 MB floor torch and transformers occupy" in rendered
     # Without a reading the column is empty rather than zero, and the paragraph stays away.
     assert "| n/a |" in render(_benchmark_fixture())
     assert "resident set" not in render(_benchmark_fixture())
