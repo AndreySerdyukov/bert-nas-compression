@@ -68,6 +68,15 @@ PROBE_REVIEWS: list[dict[str, Any]] = [
 ]
 
 
+def _index_digest(rows: list[dict[str, Any]]) -> str:
+    """Fingerprint of which corpus rows the sample holds, in the order it holds them.
+
+    One function, called where the file is written and where it is checked. Two copies of this
+    line would be two chances for the check to agree with itself and with nothing else.
+    """
+    return hashlib.sha256(",".join(str(row["id"]) for row in rows).encode("ascii")).hexdigest()
+
+
 def build_sample() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Draw the stratified sample, and describe where it came from."""
     split = load_split()
@@ -91,9 +100,7 @@ def build_sample() -> tuple[list[dict[str, Any]], dict[str, Any]]:
         "seed": SEED,
         "drawn_from": "the 15 000-row test split",
         "test_index_sha256": split.test_index_sha256,
-        "source_index_sha256": hashlib.sha256(
-            ",".join(str(row["id"]) for row in rows).encode("ascii")
-        ).hexdigest(),
+        "source_index_sha256": _index_digest(rows),
         "class_balance": {ID_TO_LABEL[0]: per_class, ID_TO_LABEL[1]: per_class},
     }
     return rows, provenance
@@ -139,12 +146,29 @@ def main() -> int:
             )
             return 1
         header = json.loads(lines[0])
-        labels = [json.loads(line)["label"] for line in lines[1:]]
+        rows = [json.loads(line) for line in lines[1:]]
+        labels = [row["label"] for row in rows]
         if sorted(set(labels)) != [0, 1] or labels.count(1) != SAMPLE_SIZE // 2:
             print(f"{SAMPLE_OUT.name} is not balanced", file=sys.stderr)
             return 1
+
+        # The digest the file writes about itself, checked rather than merely carried. Without
+        # this the check passed on row count and class balance alone, so a row swapped for another
+        # from the same split - a rebase gone wrong, a hand edit - went through unnoticed, and the
+        # provenance line went on describing a sample the file no longer held.
+        digest = _index_digest(rows)
+        if digest != header.get("source_index_sha256"):
+            print(
+                f"{SAMPLE_OUT.name} holds different rows than its own provenance line records.\n"
+                f"  recorded sha256 {header.get('source_index_sha256')}\n"
+                f"  rows here       {digest}\n"
+                "Regenerate it with `python -m training.build_eval_sample` (needs the corpus).",
+                file=sys.stderr,
+            )
+            return 1
+
         print(
-            f"eval sample: {len(labels)} rows, balanced, "
+            f"eval sample: {len(labels)} rows, balanced, row index {digest[:12]} as recorded, "
             f"from test index {header['test_index_sha256'][:12]}; probe: "
             f"{len(build_probe()['reviews'])} reviews"
         )
