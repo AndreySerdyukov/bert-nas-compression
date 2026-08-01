@@ -2,7 +2,7 @@
 
 Three teammates comparing their own three models to each other establishes which of the three is
 best and nothing else. The question a reader actually has is whether *searching* bought anything
-over keeping every third layer, and only a control can answer it. That is what this file trains.
+over spreading the layers evenly, and only a control can answer it. That is what this file trains.
 
 **The protocol is fixed by the data, not chosen.** It is read straight out of the notebooks that
 produced the shipped Random Search and BANANAS checkpoints, which agree with each other to the
@@ -16,7 +16,7 @@ footnote on its row rather than a licence to give the controls two.
 informative subset it could:
 
     1. TF-IDF + logistic regression      how much of this task needs a transformer at all
-    2. evenly-spaced masks, k=4,5        did searching beat "keep every third layer"
+    2. evenly-spaced masks, k=4,5        did searching beat "spread the layers evenly"
     3. first-k and last-k, k=4,5         does it matter which end the layers come from
     4. DistilBERT                        how does distillation compare at a similar size
     5. random masks, k=4, five seeds     is the found mask in the tail or the middle
@@ -147,7 +147,7 @@ def controls() -> list[Control]:
                 key=f"uniform-{k}",
                 label=f"Evenly spaced, {k} layers",
                 kind="mask",
-                question="Did searching beat keeping every third layer?",
+                question="Did searching beat spreading the layers evenly?",
                 priority=2,
                 layers=evenly_spaced(k),
             )

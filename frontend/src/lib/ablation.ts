@@ -51,7 +51,10 @@ export function trainedTwin(
 export const PRESETS: { label: string; layers: number[]; why: string }[] = [
   { label: "First 4", layers: [0, 1, 2, 3], why: "the bottom of the stack, the best naive rule" },
   { label: "Last 4", layers: [8, 9, 10, 11], why: "the top, which trained is 2.6 points worse" },
-  { label: "Every third", layers: [0, 4, 7, 11], why: "the evenly spaced control" },
+  // Named for what it is rather than for "every third": the rule reaches both ends of the stack,
+  // so at four layers the gaps are 4, 3 and 4 rather than a uniform 3. This is the mask the
+  // `uniform-4` control was trained on.
+  { label: "Evenly spaced", layers: [0, 4, 7, 11], why: "the naive rule, and a trained control" },
   { label: "AlphaNAS", layers: [1, 2, 6, 11], why: "what one search chose" },
   { label: "BANANAS", layers: [0, 1, 6, 9], why: "what another chose" },
   { label: "Random Search", layers: [0, 1, 5, 7, 9], why: "the mask actually shipped" },

@@ -158,7 +158,7 @@ test("a partial control run says so instead of showing the survivors as the plan
           {
             key: "uniform-4",
             label: "Evenly spaced, 4 layers",
-            question: "Did searching beat keeping every third layer?",
+            question: "Did searching beat spreading the layers evenly?",
             priority: 2,
             kind: "mask",
             layers: [0, 4, 7, 11],

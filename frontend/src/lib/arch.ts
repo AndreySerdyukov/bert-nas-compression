@@ -146,7 +146,15 @@ export function searchSpaceSize(minLayers: number, maxLayers: number): number {
   return total;
 }
 
-/** Presets the explorer offers, so "what a simple rule would pick" is one click away. */
+/**
+ * Presets this widget offers, so "what a simple rule would pick" is one click away.
+ *
+ * Every mask here is one somebody trained, and that is the rule the list follows: the four shipped
+ * architectures and the three naive controls. "Evenly spaced" was `[0,3,6,9]` - literally every
+ * third layer, and a mask no control ever used - while the trained `uniform-4` is `[0,4,7,11]`,
+ * which reaches both ends of the stack. Two masks under one name in one application, and only one
+ * of them had a published accuracy to compare against.
+ */
 export const PRESETS: ReadonlyArray<{ label: string; layers: number[] }> = [
   { label: "Full (12)", layers: [...Array(12).keys()] },
   { label: "Random Search", layers: [0, 1, 5, 7, 9] },
@@ -154,5 +162,5 @@ export const PRESETS: ReadonlyArray<{ label: string; layers: number[] }> = [
   { label: "BANANAS", layers: [0, 1, 6, 9] },
   { label: "First 4", layers: [0, 1, 2, 3] },
   { label: "Last 4", layers: [8, 9, 10, 11] },
-  { label: "Every third", layers: [0, 3, 6, 9] },
+  { label: "Evenly spaced", layers: [0, 4, 7, 11] },
 ];

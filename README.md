@@ -98,7 +98,7 @@ All five timed the same review over different amounts of work: BERT-base 33, Ran
 They answer 5 questions:
 
 1. How much of this task needs a transformer at all?
-2. Did searching beat keeping every third layer?
+2. Did searching beat spreading the layers evenly?
 3. Does it matter which end of the stack the layers come from?
 4. How does distillation compare with search at a similar size?
 5. Is the found mask in the tail of the distribution, or the middle?
