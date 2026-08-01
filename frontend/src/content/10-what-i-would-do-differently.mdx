@@ -23,6 +23,41 @@ It is entirely possible that an evenly spaced mask matches the searched one. If 
 result and it gets published as the result. A control is only worth running if you are willing to
 lose to it.
 
+## It lost
+
+All eighteen ran, and the answer depends on the depth - which is itself the first thing worth
+knowing, because a single verdict would have to pick one depth to believe.
+
+At four layers the search beat the evenly spaced mask: AlphaNAS at 0.9027 and BANANAS at 0.9031
+against 0.8959. At five layers it did not: Random Search at 0.9077 against 0.9080, a gap of four
+reviews out of fifteen thousand.
+
+The evenly spaced mask then turned out to be one particular way of being naive rather than a floor
+under all of them. Keeping the bottom k layers - `range(k)`, no rule to speak of - beats the search
+at both depths, 0.9062 against 0.9031 and 0.9114 against 0.9077. Which end of the stack the layers
+come from is worth 2.63 points at both depths, five times what a fifth layer buys, and the searched
+masks used that lever half way.
+
+Placed against five random masks of its own depth, each drawn with a seed and trained identically,
+the four-layer results sit **below the median** - AlphaNAS at the 20th percentile of the five,
+BANANAS at the 40th. Random Search clears its own median, by 0.10 points. The spread of five random
+masks at four layers is 1.25 points, thirty times the 0.04 that separates AlphaNAS from BANANAS and
+that the original tables were read as a ranking.
+
+The two controls that are not masks are the least comfortable. TF-IDF with logistic regression, ten
+seconds of CPU and no transformer at all, scores 0.9141 - above all four searched architectures.
+DistilBERT scores 0.9295 at 66 955 010 parameters, where a six-layer mask would be 66 956 546: the
+same size to within 1 536 parameters, giving up 0.35 points to full BERT where the best searched
+model gives up 2.53. One caveat belongs to it and runs in the search's favour - distillation
+pre-training is compute the masked BERTs never received, so this is an honest comparison for an
+engineer choosing a model and not one between two compression algorithms at equal cost.
+
+The careful way to state all of this is not that naive rules win. A Wilson interval on 15 000 rows is
+about ±0.46 points, and everything from 0.9003 to 0.9114 is one flat band inside it. What the
+measurement supports is narrower and worse: **the result of the search is indistinguishable from a
+random mask of the same depth**, and the search cost days of compute where the random mask costs one
+line.
+
 ## One baseline, not three
 
 The three fine-tunes of the same architecture span 0.8 points. The compression gap being celebrated

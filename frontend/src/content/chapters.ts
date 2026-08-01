@@ -96,8 +96,8 @@ export const CHAPTER_META: readonly ChapterMeta[] = [
     slug: "what-i-would-do-differently",
     number: 10,
     title: "What I would do differently",
-    summary: "The controls that were missing, and the one question they would have answered.",
-    minutes: 4,
+    summary: "The controls that were missing, and what they said once they were run.",
+    minutes: 6,
   },
 ] as const;
 
