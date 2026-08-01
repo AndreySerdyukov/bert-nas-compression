@@ -163,8 +163,10 @@ cd frontend && npm install && npm run dev                  # :5173, /api proxied
 weights, and endpoints that need a prediction answer `503` naming the script to run. Port taken?
 `BACKEND_URL=http://localhost:8010 npm run dev`.
 
-`docker compose up --build` serves the frontend on :3000. The image ships without weights; mount
-them in with `-v "$PWD/backend/models:/app/models:ro"`. The IMDB corpus is needed only to re-run the
+`docker compose up --build` serves the frontend on :3000. The image copies in whatever
+`backend/models/` holds when it is built - nothing on a clean clone, a gigabyte after the fetch
+script has run. To mount the checkpoints instead of baking them in, uncomment the `volumes:` block
+in [`docker-compose.yml`](docker-compose.yml). The IMDB corpus is needed only to re-run the
 benchmark or retrain the controls - `python scripts/fetch_imdb.py`, see
 [`data/README.md`](data/README.md).
 

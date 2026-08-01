@@ -27,6 +27,11 @@ RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/wh
 
 # Weights first, code second: the snapshots are ~1.1 GB and change once, the code changes
 # constantly. Reversing these two lines re-copies a gigabyte on every edit.
+#
+# What lands here is whatever `backend/models/` holds at build time: the manifests alone on a clean
+# clone, the manifests plus a gigabyte of checkpoints on a machine that has run fetch_models.py. So
+# the image is weightless only where the build context is, which is the case CI exercises.
+# docker-compose.yml carries a commented volume mount for the other case.
 COPY --chown=1000:1000 models ./models
 COPY --chown=1000:1000 data ./data
 COPY --chown=1000:1000 app ./app

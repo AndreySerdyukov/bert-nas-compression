@@ -9,6 +9,12 @@ services:
       APP_MODEL_TIER: ${APP_MODEL_TIER:-core}
     ports:
       - "8000:8000"
+    # The image bakes in whatever `backend/models/` held at build time - nothing on a clean clone,
+    # a gigabyte on a machine that has run the fetch script. Uncomment to mount the checkpoints
+    # instead of copying them, which keeps the image small and lets `fetch_models.py` update them
+    # without a rebuild. Read-only: nothing at serve time has any business writing there.
+    # volumes:
+    #   - ./backend/models:/app/models:ro
 
   frontend:
     build: ./frontend
