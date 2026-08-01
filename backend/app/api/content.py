@@ -1,9 +1,9 @@
 """The committed JSON documents the methodology section reads.
 
 This router is the documented exception to "routers hold no logic": the documents are served
-straight from memory as bytes, so there is no service layer to route through. The same choice
-billboard-planner made for its district polygons, and for the same reason - re-parsing a static
-document on every request buys nothing.
+straight from memory as bytes, so there is no service layer to route through. Re-parsing a static
+document on every request, and maintaining pydantic schemas that duplicate the writers' structure,
+buys nothing that `--check` in CI does not already prove about the files themselves.
 """
 
 from __future__ import annotations

@@ -242,12 +242,15 @@ def score_model(
     predictor: Any, texts: list[str], labels: list[int], counter: Any
 ) -> dict[str, Any]:
     """Run every row through a loaded model and score what comes out."""
+    # Imported rather than written as a literal: the verdict word and the class index it maps to
+    # are one decision, and it lives in serving/base.py with the class-order comment beside it.
+    from app.serving.base import POSITIVE
+
     predictions: list[int] = []
     for start in range(0, len(texts), SCORE_BATCH):
         batch = texts[start : start + SCORE_BATCH]
         predictions.extend(
-            1 if prediction.label == "positive" else 0
-            for prediction in predictor.predict_many(batch)
+            1 if prediction.label == POSITIVE else 0 for prediction in predictor.predict_many(batch)
         )
         counter.update(len(batch))
     return score_predictions(predictions, labels)

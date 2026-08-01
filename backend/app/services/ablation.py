@@ -111,7 +111,7 @@ def score_ablation(
     )
 
     with progress.stage("scoring the full model"):
-        full_verdicts = _predict_all(loaded, texts, progress, "12 layers")
+        full_verdicts = _predict_all(loaded, texts, progress, f"{loaded.info.n_layers} layers")
     full = _scored(full_verdicts, truths)
     progress.write(f"the same model at full depth: accuracy {full['accuracy']:.4f}")
 

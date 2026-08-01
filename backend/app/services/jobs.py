@@ -123,7 +123,9 @@ class JobSub:
 
     def __init__(self, progress: JobProgress, total: int, desc: str) -> None:
         self._progress = progress
-        self._desc = desc
+        # `desc` is taken and dropped: the terminal tracker draws it on the nested bar, and this
+        # side has no second line to draw it on - the stage name is already the label a reader
+        # sees. Kept in the signature because `ProgressReporter.sub` is one shape for both.
         progress.set_total(total)
 
     def update(self, n: int = 1) -> None:
@@ -210,15 +212,6 @@ class JobRunner:
         self._order: list[str] = []
         self._keep = keep
         self._lock = threading.Lock()
-
-    @property
-    def running(self) -> Job | None:
-        with self._lock:
-            for job_id in reversed(self._order):
-                job = self._jobs[job_id]
-                if not job.finished:
-                    return job
-        return None
 
     def submit(
         self,

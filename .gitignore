@@ -28,8 +28,8 @@ playwright-report/
 # Model weights. Unlike the sibling projects, these are NOT rebuilt from anything in the repo:
 # they are fine-tuned checkpoints that cost GPU-hours, and they live on the Hugging Face Hub.
 # `backend/scripts/fetch_models.py` downloads them at pinned revisions. What IS tracked is the
-# metadata that makes a download verifiable: the manifest (*.meta.json), the measured card
-# (*.model_card.json) and the file digests (*.lock.json).
+# metadata that makes a download verifiable: the manifest (*.meta.json) and the per-file digests
+# (*.lock.json), so an upstream replacement is detectable.
 backend/models/*/
 backend/models/*.pt
 backend/models/*.bin
