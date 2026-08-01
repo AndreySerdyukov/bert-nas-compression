@@ -148,6 +148,140 @@ export interface ReportedResults {
 
 export const fetchReportedResults = () => getJson<ReportedResults>("/api/reported-results");
 
+// --- what this project measured itself ----------------------------------------------------------
+
+/** Counts, not rates: every derived figure on the benchmark page is computed from these four. */
+export interface Confusion {
+  true_negative: number;
+  false_positive: number;
+  false_negative: number;
+  true_positive: number;
+}
+
+/** The scores every model and every control carries, so both tables read the same shape. */
+export interface Scored {
+  correct: number;
+  accuracy: number;
+  macro_precision: number;
+  macro_recall: number;
+  macro_f1: number;
+  positive_precision: number;
+  positive_recall: number;
+  positive_f1: number;
+  confusion: Confusion;
+}
+
+export interface BenchmarkModel extends Scored {
+  name: string;
+  label: string;
+  /** null on the baseline, which was not produced by a search. */
+  method: string | null;
+  n_layers: number | null;
+  max_length: number;
+  hf_repo: string;
+  hf_revision: string;
+  params: number;
+  params_formula: number | null;
+  params_agree: boolean | null;
+  flops_per_example: number | null;
+  bytes_on_disk: number | null;
+  bytes_fp32: number | null;
+  score_seconds: number;
+  latency: LatencyStats | null;
+  throughput: ThroughputStats | null;
+  /** Weighed one model per process; the baseline below is the floor none of them owns. */
+  resident_bytes: number | null;
+  runtime_baseline_bytes: number | null;
+}
+
+export interface BenchmarkProtocol {
+  test_rows: number;
+  test_index_sha256: string;
+  corpus_sha256: string;
+  accuracy_device: string;
+  latency_device: string;
+  latency_threads: number;
+  latency_warmup: number;
+  latency_repeats: number;
+  throughput_batch: number;
+  score_batch: number;
+  machine: string;
+  python: string;
+  torch: string;
+  transformers: string;
+  memory_measured: string;
+}
+
+export interface Benchmark {
+  schema: number;
+  generated_by: string;
+  note: string;
+  protocol: BenchmarkProtocol;
+  models: BenchmarkModel[];
+}
+
+export const fetchBenchmark = () => getJson<Benchmark>("/api/benchmark");
+
+// --- the controls the searched architectures are compared against -------------------------------
+
+export interface ControlProtocol {
+  epochs: number;
+  train_rows: number;
+  test_rows: number;
+  /** The same split the benchmark scored on; a control on another split compares to nothing. */
+  test_index_sha256: string;
+  max_length: number;
+  batch_size: number;
+  learning_rate: number;
+  weight_decay: number;
+  warmup_ratio: number;
+  base_model: string;
+  device: string;
+  cooldown_seconds: number;
+  torch: string;
+  source: string;
+}
+
+/** What one control cost. `steps` is null for TF-IDF, which is not trained in steps at all. */
+export interface ControlCost {
+  seconds: number;
+  steps: number | null;
+  steps_per_epoch?: number;
+  seconds_per_step?: number;
+  train_loss?: number;
+  params?: number;
+  features?: number;
+  note?: string;
+}
+
+export interface ControlResult extends Scored {
+  key: string;
+  label: string;
+  /** Every control carries the question it exists to answer; a bare number is unusable. */
+  question: string;
+  priority: number;
+  kind: "tfidf" | "mask" | "distilbert";
+  layers: number[] | null;
+  n_layers: number | null;
+  seed: number | null;
+  train: ControlCost;
+}
+
+export interface Controls {
+  schema: number;
+  generated_by: string;
+  note: string;
+  protocol: ControlProtocol;
+  /** Printed beside the results: six of eighteen reads as "the controls" unless the plan is shown. */
+  planned: string[];
+  not_run: string[];
+  weights_saved: boolean;
+  weights_note: string;
+  controls: ControlResult[];
+}
+
+export const fetchControls = () => getJson<Controls>("/api/controls");
+
 // --- serving: the catalog, the reviews, and scoring ---------------------------------------------
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {

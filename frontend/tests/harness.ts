@@ -2,7 +2,9 @@ import { test as base, expect, type Page } from "@playwright/test";
 
 import {
   ARCHITECTURES,
+  BENCHMARK,
   COMPARE,
+  CONTROLS,
   EXAMPLES,
   MODELS,
   REPORTED_RESULTS,
@@ -35,6 +37,10 @@ const API_STUBS: Record<string, unknown> = {
   "/api/architectures": ARCHITECTURES,
   "/api/trajectories": TRAJECTORIES,
   "/api/reported-results": REPORTED_RESULTS,
+  // The two documents that can legitimately be absent. A test that wants the 503 registers its own
+  // route afterwards, since Playwright checks handlers in reverse registration order.
+  "/api/benchmark": BENCHMARK,
+  "/api/controls": CONTROLS,
   // The serving endpoints. A test that wants a different registry state registers its own route
   // afterwards: Playwright checks handlers in reverse registration order, so the later one wins.
   "/api/models": MODELS,

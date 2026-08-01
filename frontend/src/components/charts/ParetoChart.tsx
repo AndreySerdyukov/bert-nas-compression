@@ -1,5 +1,12 @@
 import Frame from "./Frame";
-import { formatAccuracy, formatParams, linear, log, padDomain } from "./scale";
+import {
+  formatAccuracy,
+  formatAccuracyPrecise,
+  formatParams,
+  linear,
+  log,
+  padDomain,
+} from "./scale";
 
 /**
  * Accuracy against parameter count - the trade the whole project is about, on one pair of axes.
@@ -24,6 +31,16 @@ export interface ParetoPoint {
   ablation?: boolean;
   /** Drawn larger and labelled: the reference the budget band is measured from. */
   baseline?: boolean;
+  /**
+   * A control rather than a searched architecture: drawn as a small square in the muted colour and
+   * left unlabelled.
+   *
+   * Unlabelled because the controls share parameter counts exactly - every four-layer mask is
+   * 52 780 802 parameters, so eight of them stack into one vertical line and eight captions would
+   * be a smear. The reader is meant to see the cloud and where the searched models sit inside it;
+   * the exact figures are in the table below and in the screen-reader table Frame renders.
+   */
+  control?: boolean;
 }
 
 export interface ParetoChartProps {
@@ -55,7 +72,58 @@ export default function ParetoChart({ points, budgetPp, ariaLabel, caption }: Pa
 
   const baseline = points.find((point) => point.baseline);
 
+  /**
+   * Where each label goes, resolved before the render so no two of them sit on top of each other.
+   *
+   * AlphaNAS and BANANAS forced this: byte-identical architectures at 52 780 802 parameters, four
+   * hundredths of a point apart, so their captions land within a couple of pixels and overprint
+   * into an unreadable smudge. Anything still colliding gets pushed down a line at a time. The
+   * order is by accuracy descending, so the model on top keeps the natural position above its
+   * point and the one underneath moves.
+   */
+  const taken: { left: number; right: number; ly: number }[] = [];
+  const labelPositions = points
+    .filter((point) => !point.control)
+    .sort((a, b) => b.accuracy - a.accuracy)
+    .map((point) => {
+      const px = x(point.params);
+      const py = y(point.accuracy);
+      // Close enough at fontSize 10 to keep two captions from touching.
+      const width = point.label.length * 5.2;
+
+      // Above the point, then out to the side, then further above. Sideways before upwards
+      // because a caption that has drifted two lines up stops reading as belonging to its point,
+      // and at the 52.8M column there is empty plot to the right.
+      const candidates: { lx: number; ly: number; anchor: "middle" | "start" | "end" }[] = [
+        { lx: px, ly: py - 10, anchor: "middle" },
+        { lx: px + 9, ly: py + 3.5, anchor: "start" },
+        { lx: px - 9, ly: py + 3.5, anchor: "end" },
+        { lx: px, ly: py - 22, anchor: "middle" },
+        { lx: px, ly: py - 34, anchor: "middle" },
+      ];
+
+      const extent = (lx: number, anchor: "middle" | "start" | "end") =>
+        anchor === "middle"
+          ? { left: lx - width / 2, right: lx + width / 2 }
+          : anchor === "start"
+            ? { left: lx, right: lx + width }
+            : { left: lx - width, right: lx };
+
+      const free = candidates.find(({ lx, ly, anchor }) => {
+        const { left, right } = extent(lx, anchor);
+        return !taken.some(
+          (other) => left < other.right && right > other.left && Math.abs(other.ly - ly) < 11,
+        );
+      });
+      const chosen = free ?? candidates[candidates.length - 1]!;
+      taken.push({ ...extent(chosen.lx, chosen.anchor), ly: chosen.ly });
+      return { point, px, py, ...chosen };
+    });
+
   // The frontier over trained models only: an ablation is not something anyone would ship.
+  // Controls do belong on it - they were trained under the same protocol, and a frontier that
+  // excluded them would draw the searched models as the best available at their size when the
+  // measurement says otherwise.
   const trained = points.filter((point) => !point.ablation).sort((a, b) => a.params - b.params);
   const frontier: ParetoPoint[] = [];
   let bestSoFar = -Infinity;
@@ -92,8 +160,16 @@ export default function ParetoChart({ points, budgetPp, ariaLabel, caption }: Pa
           rows: points.map((point) => [
             point.label,
             formatParams(point.params),
-            formatAccuracy(point.accuracy),
-            point.ablation ? "ablation, not retrained" : point.baseline ? "baseline" : "trained",
+            // Two decimals here, not one: this table is what the browser tests read, and at one
+            // decimal AlphaNAS and BANANAS become the same string.
+            formatAccuracyPrecise(point.accuracy),
+            point.ablation
+              ? "ablation, not retrained"
+              : point.baseline
+                ? "baseline"
+                : point.control
+                  ? "control"
+                  : "trained",
           ]),
         }}
       >
@@ -131,23 +207,48 @@ export default function ParetoChart({ points, budgetPp, ariaLabel, caption }: Pa
           />
         )}
 
-        {points.map((point) => (
+        {/* Controls first, so a searched model never disappears under the cloud it is being
+            compared against. */}
+        {points
+          .filter((point) => point.control)
+          .map((point) => (
+            <rect
+              key={`c-${point.label}`}
+              x={x(point.params) - 3}
+              y={y(point.accuracy) - 3}
+              width={6}
+              height={6}
+              fill="rgb(var(--slate) / 0.55)"
+              stroke="rgb(var(--slate))"
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+
+        {labelPositions.map(({ point, px, py, lx, ly, anchor }) => (
           <g key={`${point.label}-${point.params}-${point.accuracy}`}>
             <circle
-              cx={x(point.params)}
-              cy={y(point.accuracy)}
+              cx={px}
+              cy={py}
               r={point.baseline ? 5.5 : 4.5}
               fill={point.ablation ? "rgb(var(--canvas))" : "rgb(var(--accent))"}
               stroke="rgb(var(--accent))"
               strokeWidth="1.4"
               vectorEffect="non-scaling-stroke"
             />
+            {/* Painted with a halo of the panel colour: at 50M the controls stack into a dense
+                column and a plain label lands with squares struck through the letters. Stroke
+                first, fill over it, so the outline never eats into the glyphs. */}
             <text
-              x={x(point.params)}
-              y={y(point.accuracy) - 10}
-              textAnchor="middle"
+              x={lx}
+              y={ly}
+              textAnchor={anchor}
               fill="rgb(var(--slate))"
               fontSize="10"
+              stroke="rgb(var(--surface))"
+              strokeWidth="3.5"
+              paintOrder="stroke"
+              strokeLinejoin="round"
             >
               {point.label}
             </text>

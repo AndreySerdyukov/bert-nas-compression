@@ -97,9 +97,20 @@ export function formatParams(value: number): string {
   return String(value);
 }
 
-/** 0.9027 -> "90.3%". Accuracies here differ in the first decimal, so one is the right precision. */
+/** 0.9027 -> "90.3%". One decimal is right for an axis tick, where a label has to stay readable. */
 export function formatAccuracy(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+/**
+ * 0.9027 -> "90.27%". For tables and any figure that gets compared to another one.
+ *
+ * The controls made this necessary: AlphaNAS scores 0.9027 and BANANAS 0.9031, and at one decimal
+ * both render "90.3%" - a table that cannot separate two models it is putting on adjacent rows.
+ * The extra digit is not false precision either way, since the same 15 000 rows produced both.
+ */
+export function formatAccuracyPrecise(value: number): string {
+  return `${(value * 100).toFixed(2)}%`;
 }
 
 export function formatFlops(value: number): string {
