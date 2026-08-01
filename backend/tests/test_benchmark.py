@@ -122,7 +122,10 @@ def test_the_table_keeps_latency_and_throughput_in_separate_columns() -> None:
 
 def test_the_table_carries_the_protocol_that_makes_it_comparable() -> None:
     rendered = render(_benchmark_fixture())
-    assert "15,000 row test split" in rendered
+    # Thin no-break spaces, the same grouping the parameter column and the surrounding prose use.
+    # A generated "15,000" two lines under a hand-written "15 000" reads as two quantities.
+    assert "15 000 row test split" in rendered
+    assert "15,000" not in rendered
     assert "33d7fee10704" in rendered
     assert "`cpu`, 1 thread" in rendered
     assert "5 warm-ups discarded" in rendered

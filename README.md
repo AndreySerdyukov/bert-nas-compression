@@ -64,7 +64,7 @@ Generated from `backend/data/benchmark.json` and `backend/data/controls.json` by
 | BANANAS | bananas | 0.9031 | 0.9031 | 52 780 802 | 7.2 ms | 369/s | 152 MB |
 | AdaBERT | adabert | 0.9028 | 0.9028 | 7 814 146 | 0.9 ms | 1444/s | 88 MB |
 
-Measured on the full 15,000 row test split (index sha256 `33d7fee10704`) by [`training/benchmark.py`](backend/training/benchmark.py).
+Measured on the full 15 000 row test split (index sha256 `33d7fee10704`) by [`training/benchmark.py`](backend/training/benchmark.py).
 
 **Accuracy** on `mps`. **Latency** is single-example on `cpu`, 1 thread, 5 warm-ups discarded, median of 25, round-robin. **Throughput** is a batch of 16 and a different quantity: dividing it by the batch size does not give the latency column. Darwin arm64, torch 2.13.0, transformers 5.14.1.
 
@@ -103,7 +103,7 @@ They answer 5 questions:
 4. How does distillation compare with search at a similar size?
 5. Is the found mask in the tail of the distribution, or the middle?
 
-Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: 1 epoch over all 28,000 training rows, 512 tokens, batch 16, AdamW at 3e-05 with weight decay 0.01 and a 10% warm-up. Nothing was tuned - shortening the training would bias every comparison on this page in this project's favour.
+Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: 1 epoch over all 28 000 training rows, 512 tokens, batch 16, AdamW at 3e-05 with weight decay 0.01 and a 10% warm-up. Nothing was tuned - shortening the training would bias every comparison on this page in this project's favour.
 
 <!-- benchmark:end -->
 

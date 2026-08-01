@@ -38,7 +38,12 @@ MISSING = (
 
 
 def thousands(value: int | None) -> str:
-    """Non-breaking thin spaces, so a parameter count does not wrap mid-number."""
+    """Non-breaking thin spaces, so a number does not wrap mid-number.
+
+    Used for every grouped figure this file emits rather than only for the parameter counts. The
+    prose around the generated block writes "15 000" and "28 000", and a generated paragraph that
+    said "15,000" two lines below made the same quantity look like two conventions.
+    """
     return "n/a" if value is None else f"{value:,}".replace(",", " ")
 
 
@@ -85,7 +90,7 @@ def render(benchmark: dict[str, Any]) -> str:
     lines += [
         "",
         (
-            f"Measured on the full {protocol['test_rows']:,} row test split "
+            f"Measured on the full {thousands(protocol['test_rows'])} row test split "
             f"(index sha256 `{protocol['test_index_sha256'][:12]}`) by "
             f"[`training/benchmark.py`](backend/training/benchmark.py)."
         ),
@@ -176,7 +181,8 @@ def render_controls(controls: dict[str, Any]) -> str:
         "",
         (
             f"Trained under the shipped checkpoints' own protocol, read out of the eval notebooks: "
-            f"{protocol['epochs']} epoch over all {protocol['train_rows']:,} training rows, "
+            f"{protocol['epochs']} epoch over all {thousands(protocol['train_rows'])} training "
+            f"rows, "
             f"{protocol['max_length']} tokens, batch {protocol['batch_size']}, AdamW at "
             f"{protocol['learning_rate']} with weight decay {protocol['weight_decay']} and a "
             f"{protocol['warmup_ratio']:.0%} warm-up. Nothing was tuned - shortening the training "
