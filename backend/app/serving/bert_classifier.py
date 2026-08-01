@@ -67,6 +67,18 @@ class BertClassifier:
             list(CLASS_NAMES) if info.positive_index == 1 else list(reversed(CLASS_NAMES))
         )
 
+    @property
+    def module(self) -> Any:
+        """The torch module itself, for the explorer's temporary amputation.
+
+        Exposed rather than reached for through the private attribute so there is one documented
+        way in. The contract on the caller: mutate it only inside `serving.masked_bert.amputated`,
+        and only while holding the inference lock. This object is what every other endpoint scores
+        with, so a mutation that outlives its block makes every later number wrong without any
+        signal that it did.
+        """
+        return self._model
+
     def predict(self, text: str) -> Prediction:
         """Score one review. This is the path latency is measured on."""
         return self.predict_many([text])[0]

@@ -483,8 +483,45 @@ export function scanResult(job: JobSnapshot | null): ScanResult | null {
   return job.result as unknown as ScanResult;
 }
 
-export const startJob = (body: { kind: "disagreement" | "selftest"; limit?: number }) =>
-  postJson<JobSnapshot>("/api/jobs", body);
+/** One accuracy with the interval that says how much of it is evidence. */
+export interface ScoredRun {
+  correct: number;
+  accuracy: number;
+  wilson_low: number;
+  wilson_high: number;
+}
+
+export interface AblationResult {
+  mask: number[];
+  layers: number[];
+  n_layers: number;
+  params: number;
+  /** The method that shipped this exact mask, if one did. Null for anything the user invents. */
+  matches_known_architecture: string | null;
+  baseline: string;
+  baseline_label: string;
+  rows_scanned: number;
+  /** The mask applied to a fine-tuned model, with no retraining. */
+  ablated: ScoredRun;
+  /** The same model at full depth, over the same rows in the same pass. */
+  full: ScoredRun;
+  agreement_with_full: number;
+  protocol: string;
+  note: string;
+}
+
+/** Narrow a finished ablation, the same way `scanResult` narrows a scan. */
+export function ablationResult(job: JobSnapshot | null): AblationResult | null {
+  if (job === null || job.kind !== "ablation" || job.result === null) return null;
+  return job.result as unknown as AblationResult;
+}
+
+export const startJob = (body: {
+  kind: "disagreement" | "selftest" | "ablation";
+  limit?: number;
+  /** `ablation` only: which encoder layers survive. */
+  layers?: number[];
+}) => postJson<JobSnapshot>("/api/jobs", body);
 
 export const fetchJob = (id: string) => getJson<JobSnapshot>(`/api/jobs/${id}`);
 

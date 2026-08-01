@@ -22,7 +22,14 @@ export interface JobState {
 
 const POLL_MS = 1000;
 
-export function useJob(): JobState & { start: (body: { limit?: number }) => Promise<void> } {
+/** What a caller asks for. `kind` defaults to the scan, which is what the playground wants. */
+export interface StartOptions {
+  kind?: "disagreement" | "ablation";
+  limit?: number;
+  layers?: number[];
+}
+
+export function useJob(): JobState & { start: (body: StartOptions) => Promise<void> } {
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,13 +85,13 @@ export function useJob(): JobState & { start: (body: { limit?: number }) => Prom
   );
 
   const start = useCallback(
-    async (body: { limit?: number }) => {
+    async ({ kind = "disagreement", ...body }: StartOptions) => {
       stop();
       setError(null);
       setJob(null);
       setBusy(true);
       try {
-        const started = await startJob({ kind: "disagreement", ...body });
+        const started = await startJob({ kind, ...body });
         setJob(started);
         follow(started.id);
       } catch (caught: unknown) {

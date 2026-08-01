@@ -260,3 +260,21 @@ def test_the_scan_refuses_to_run_on_nothing() -> None:
         scan_disagreements(
             {}, [SampleRow(id=1, text="a", label=1)], baseline="bert-imdb", progress=NullProgress()
         )
+
+
+def test_an_ablation_without_layers_is_a_422_rather_than_a_failed_job() -> None:
+    """The mask is checked on the request that carried it, not two seconds later in a job."""
+    with TestClient(create_app()) as client:
+        response = client.post("/api/jobs", json={"kind": "ablation"})
+    # 503 when serving is off, 422 when it is on and the mask is the thing missing. Both are
+    # answers about this request; neither is a job that starts and then reports itself broken.
+    assert response.status_code in (422, 503)
+    assert "layers" in response.json()["detail"] or "serving" in response.json()["detail"]
+
+
+def test_an_ablation_is_refused_when_serving_is_off() -> None:
+    """No models, no encoder to cut. The message says which switch, not "internal error"."""
+    with TestClient(create_app()) as client:
+        response = client.post("/api/jobs", json={"kind": "ablation", "layers": [0, 1, 2, 3]})
+    assert response.status_code == 503
+    assert "APP_MODEL_TIER" in response.json()["detail"]

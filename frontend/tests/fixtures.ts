@@ -937,3 +937,72 @@ export const CONTROLS: Controls = {
     },
   ],
 };
+
+// --- the explorer's ablation --------------------------------------------------------------------
+
+/**
+ * An amputation of the bottom four layers: what `mask(finetuned)` does to a model that reaches
+ * 93% at full depth.
+ *
+ * The collapse is the point of the page, so the fixture carries a real collapse rather than a
+ * gentle dip - a stub scoring 0.90 would let a page through that had quietly swapped the two
+ * columns and still looked plausible.
+ */
+export const ABLATION_RESULT = {
+  mask: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+  layers: [0, 1, 2, 3],
+  n_layers: 4,
+  params: 52_780_802,
+  matches_known_architecture: null,
+  baseline: "bert-imdb",
+  baseline_label: "BERT-base",
+  rows_scanned: 2000,
+  ablated: { correct: 1243, accuracy: 0.6215, wilson_low: 0.6, wilson_high: 0.6427 },
+  full: { correct: 1865, accuracy: 0.9325, wilson_low: 0.9206, wilson_high: 0.9428 },
+  agreement_with_full: 0.6335,
+  protocol:
+    "Both figures are the same 2000 reviews from the evaluation sample, scored in one pass. This is not the benchmark, which is the full 15 000-row test split.",
+  note: "The layers were removed from an already fine-tuned model and nothing was retrained. The searched architectures were trained after their layers were chosen, which is the expensive half of NAS and the half this measurement leaves out.",
+};
+
+const ABLATION_STAGES = ["scoring the amputated model", "scoring the full model"];
+
+export const ABLATION_STARTED: JobSnapshot = {
+  id: "ablation-1",
+  kind: "ablation",
+  status: "running",
+  stages: ABLATION_STAGES,
+  stage: ABLATION_STAGES[0]!,
+  stage_index: 0,
+  processed: 0,
+  total: 2000,
+  messages: [],
+  elapsed_s: 0,
+  result: null,
+  error: null,
+};
+
+export const ABLATION_FRAMES: JobSnapshot[] = [
+  { ...ABLATION_STARTED, processed: 900, elapsed_s: 3.1 },
+  {
+    ...ABLATION_STARTED,
+    stage: ABLATION_STAGES[1]!,
+    stage_index: 1,
+    processed: 1200,
+    elapsed_s: 9.4,
+    messages: ["4 of 12 layers, no retraining: accuracy 0.6215"],
+  },
+  {
+    ...ABLATION_STARTED,
+    status: "done",
+    stage: null,
+    stage_index: 2,
+    processed: 2000,
+    elapsed_s: 15.2,
+    messages: [
+      "4 of 12 layers, no retraining: accuracy 0.6215",
+      "the same model at full depth: accuracy 0.9325",
+    ],
+    result: ABLATION_RESULT as unknown as Record<string, unknown>,
+  },
+];
